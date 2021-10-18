@@ -71,7 +71,7 @@ public:
 
     int key = 1;
     int imuPreintegrationResetId = 0;
-
+    //此处只计算平移是因为在utility.h的imuConvert函数中已经计算了旋转
     gtsam::Pose3 imu2Lidar = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
     gtsam::Pose3 lidar2Imu = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));;
 
