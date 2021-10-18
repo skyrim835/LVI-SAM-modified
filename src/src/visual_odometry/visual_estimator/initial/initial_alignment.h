@@ -115,8 +115,8 @@ public:
         for (int i = 0; i < (int)odomQueue.size(); ++i)
         {
             odomCur = odomQueue[i];
-
-            if (odomCur.header.stamp.toSec() < img_time - 0.002) // 500Hz imu 0.002 400Hz imu 0.0025 100hz 0.01
+            double imu_step = 1.0 / imu_Hz;
+            if (odomCur.header.stamp.toSec() < img_time - imu_step) // 500Hz imu 0.002 400Hz imu 0.0025 100hz 0.01
                 continue;
             else
                 break;

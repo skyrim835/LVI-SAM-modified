@@ -83,12 +83,11 @@ void remove (const pcl::PointCloud<PointXYZIRT> &cloud_in, pcl::PointCloud<Point
 }
 
 
-const int queueLength = 500; //500hz 500 400hz 400 100hz 100
 
 class ImageProjection : public ParamServer
 {
 private:
-
+    const int queueLength = imuHz; //500hz 500 400hz 400 100hz 100
     std::mutex imuLock;
     std::mutex odoLock;
 

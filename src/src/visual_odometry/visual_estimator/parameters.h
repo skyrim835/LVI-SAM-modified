@@ -94,6 +94,8 @@ extern double L_I_TZ;
 extern double L_I_RX;
 extern double L_I_RY;
 extern double L_I_RZ;
+
+extern int imu_Hz;
 /**
  * @brief 修改的地方 modified
  * 

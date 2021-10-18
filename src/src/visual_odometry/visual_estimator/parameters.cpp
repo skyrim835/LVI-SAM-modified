@@ -33,7 +33,7 @@ double L_I_TZ;
 double L_I_RX;
 double L_I_RY;
 double L_I_RZ;
-
+int imu_Hz;
 /**
  * @brief 修改的地方
  * 
@@ -79,7 +79,7 @@ void readParameters(ros::NodeHandle &n)
     L_I_RX = fsSettings["lidar_to_imu_rx"];
     L_I_RY = fsSettings["lidar_to_imu_ry"];
     L_I_RZ = fsSettings["lidar_to_imu_rz"];
-
+    imu_Hz = fsSettings["imu_hz"];
     L_C_TX = fsSettings["lidar_to_cam_tx"];
     L_C_TY = fsSettings["lidar_to_cam_ty"];
     L_C_TZ = fsSettings["lidar_to_cam_tz"];

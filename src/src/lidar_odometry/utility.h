@@ -101,6 +101,7 @@ public:
     float imuAccBiasN;
     float imuGyrBiasN;
     float imuGravity;
+    int imuHz;
     vector<double> extRotV;
     vector<double> extRPYV;
     vector<double> extTransV;
@@ -176,6 +177,7 @@ public:
         nh.param<float>(PROJECT_NAME + "/imuAccBiasN", imuAccBiasN, 0.0002);
         nh.param<float>(PROJECT_NAME + "/imuGyrBiasN", imuGyrBiasN, 0.00003);
         nh.param<float>(PROJECT_NAME + "/imuGravity", imuGravity, 9.80511);
+        nh.param<int>(PROJECT_NAME + "/imuHz", imuHz, 500);
         nh.param<vector<double>>(PROJECT_NAME+ "/extrinsicRot", extRotV, vector<double>());
         nh.param<vector<double>>(PROJECT_NAME+ "/extrinsicRPY", extRPYV, vector<double>());
         nh.param<vector<double>>(PROJECT_NAME+ "/extrinsicTrans", extTransV, vector<double>());
