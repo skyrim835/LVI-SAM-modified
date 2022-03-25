@@ -60,7 +60,7 @@ const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
 // #define UNIT_SPHERE_ERROR 1
 
-
+// extern std::string vio_trajectory_path;
 extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
 extern int ESTIMATE_EXTRINSIC;
@@ -84,7 +84,7 @@ extern double TR;
 extern int ESTIMATE_TD;
 extern int ROLLING_SHUTTER;
 extern double ROW, COL;
-
+// extern double Fx,Fy,Cx,Cy;
 extern int USE_LIDAR;
 extern int ALIGN_CAMERA_LIDAR_COORDINATE;
 
@@ -97,7 +97,7 @@ extern double L_I_RZ;
 
 extern int imu_Hz;
 /**
- * @brief 修改的地方 modified
+ * @brief 修改的地方
  * 
  */
 extern double L_C_TX;
@@ -107,14 +107,20 @@ extern double L_C_RX;
 extern double L_C_RY;
 extern double L_C_RZ;
 
+extern double imuGravity;
+extern double imuAccNoise;
+extern double imuGyrNoise;
+extern double imuAccBiasN;
+extern double imuGyrBiasN;
+extern int imuHz;
 
 void readParameters(ros::NodeHandle &n);
 
 enum SIZE_PARAMETERIZATION
 {
-    SIZE_POSE = 7,
-    SIZE_SPEEDBIAS = 9,
-    SIZE_FEATURE = 1
+    SIZE_POSE = 7, // P,Q组合成pose, 6自由度7DOF
+    SIZE_SPEEDBIAS = 9, // V, Ba, Bg, 共9自由度
+    SIZE_FEATURE = 1 // 深度
 };
 
 enum StateOrder

@@ -42,41 +42,44 @@ bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
 
-Eigen::Matrix3d lidar2camRot;
-Eigen::Vector3d lidar2camTrans;
+Eigen::Matrix3d lidar2imuRot;
+Eigen::Vector3d lidar2imuTrans;
+
 /**
- * @brief 修改的地方 modified
+ * @brief 修改的地方
  * 
  * @param n 
  * @param name 
  */
 //获取配置文件中的参数
-void getParam(ros::NodeHandle &n,const std::string &name)
+void getParam(ros::NodeHandle &n, const std::string &name)
 {
-    
+
     XmlRpc::XmlRpcValue param_vec;
-    if(!n.getParam(name, param_vec))
-    ROS_ERROR("Failed to get parameter from server.");
-    for (size_t i = 0,j = 0,k = 0; i < param_vec.size(); ++i) 
+    if (!n.getParam(name, param_vec))
+        ROS_ERROR("Failed to get parameter from server.");
+    for (size_t i = 0, j = 0, k = 0; (int)i < param_vec.size(); ++i)
     {
         XmlRpc::XmlRpcValue tmp_value = param_vec[i];
-        if(tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble || tmp_value.getType() == XmlRpc::XmlRpcValue::TypeInt)
+        if (tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble || tmp_value.getType() == XmlRpc::XmlRpcValue::TypeInt)
         {
-            if(param_vec.size() == 9)
+            if (param_vec.size() == 9)
             {
-                if(i%3==0 && i!=0)j++;
-                k = i%3;
-                lidar2camRot(j,k) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value):double(int(tmp_value));
-            }else
-            {
-                lidar2camTrans(i) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value):double(int(tmp_value));
+                if (i % 3 == 0 && i != 0)
+                    j++;
+                k = i % 3;
+                lidar2imuRot(j, k) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
             }
-        }     
+            else
+            {
+                lidar2imuTrans(i) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
+            }
+        }
     }
 }
-
-
+//将这个数据直接传给lidar是不是有问题 按理说应该是优化后的位姿
 //预计IMU的初始位置、速度和方向
+//中值积分计算不太行
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
@@ -104,16 +107,17 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     //（世界坐标系）
     //计算当前测量值和上一测量值的均值
     //计算P，V，Q
-    Eigen::Vector3d un_acc_0 = tmp_Q * (acc_0 - tmp_Ba) - estimator.g;
-    
-    Eigen::Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - tmp_Bg;
-    tmp_Q = tmp_Q * Utility::deltaQ(un_gyr * dt);
+    Eigen::Vector3d un_acc_0 = tmp_Q * (acc_0 - tmp_Ba) - estimator.g; //上一时刻加速减去bias之后得到上一时刻真正的加速度 乘上上一时刻的四元数得到上一时刻加速度在这一时刻的分量 再减去重力减速度
+
+    Eigen::Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - tmp_Bg; //上一时刻角速度与这一时刻角速度取平均 再减去bias
+    tmp_Q = tmp_Q * Utility::deltaQ(un_gyr * dt);                       //得到
 
     Eigen::Vector3d un_acc_1 = tmp_Q * (linear_acceleration - tmp_Ba) - estimator.g;
 
     Eigen::Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
 
     tmp_P = tmp_P + dt * tmp_V + 0.5 * dt * dt * un_acc;
+
     tmp_V = tmp_V + dt * un_acc;
 
     acc_0 = linear_acceleration;
@@ -122,6 +126,7 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 
 void update()
 {
+    // cout<<"run here2"<<endl;
     TicToc t_predict;
     latest_time = current_time;
     tmp_P = estimator.Ps[WINDOW_SIZE];
@@ -134,7 +139,9 @@ void update()
 
     queue<sensor_msgs::ImuConstPtr> tmp_imu_buf = imu_buf;
     for (sensor_msgs::ImuConstPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())
+    {
         predict(tmp_imu_buf.front());
+    }
 }
 
 //筛选匹配相同时间戳下的IMU和image（一个image可能对应多个IMU）
@@ -200,12 +207,12 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
         std_msgs::Header header = imu_msg->header;
         //solver_flag：INITIAL/NON_LINEAR
         //处在优化过程时输出位姿
+        // ROS_INFO("estimator.solver_flag %d",estimator.solver_flag);
         if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
             pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header, estimator.failureCount);
     }
 }
-
-void odom_callback(const nav_msgs::Odometry::ConstPtr& odom_msg)
+void odom_callback(const nav_msgs::Odometry::ConstPtr &odom_msg)
 {
     m_odom.lock();
     odomQueue.push_back(*odom_msg);
@@ -232,9 +239,9 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
     {
         ROS_WARN("restart the estimator!");
         m_buf.lock();
-        while(!feature_buf.empty())
+        while (!feature_buf.empty())
             feature_buf.pop();
-        while(!imu_buf.empty())
+        while (!imu_buf.empty())
             imu_buf.pop();
         m_buf.unlock();
         m_estimator.lock();
@@ -246,18 +253,16 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
     }
     return;
 }
-
 // thread: visual-inertial odometry
 void process()
 {
+  
     while (ros::ok())
     {
         std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
         std::unique_lock<std::mutex> lk(m_buf);
         con.wait(lk, [&]
-                {
-            return (measurements = getMeasurements()).size() != 0;
-                });
+                 { return (measurements = getMeasurements()).size() != 0; });
         lk.unlock();
 
         m_estimator.lock();
@@ -274,7 +279,7 @@ void process()
                 double img_t = img_msg->header.stamp.toSec() + estimator.td;
 
                 if (t <= img_t)
-                { 
+                {
                     if (current_time < 0)
                         current_time = t;
                     double dt = t - current_time;
@@ -331,25 +336,26 @@ void process()
                 ROS_ASSERT(z == 1);
                 Eigen::Matrix<double, 8, 1> xyz_uv_velocity_depth;
                 xyz_uv_velocity_depth << x, y, z, p_u, p_v, velocity_x, velocity_y, depth;
-                image[feature_id].emplace_back(camera_id,  xyz_uv_velocity_depth);
+                image[feature_id].emplace_back(camera_id, xyz_uv_velocity_depth);
             }
             /**
-             * @brief 修改的地方 modified
-             * 导入lidar2cam的外参
+             * @brief 修改的地方
+             * 导入lidar2imu的外参
              */
-            Eigen::Matrix3d lidar2camRot_ = lidar2camRot;
-            Eigen::Vector3d lidar2camTrans_ = lidar2camTrans;
+            Eigen::Matrix3d lidar2imuRot_ = lidar2imuRot;
+            Eigen::Vector3d lidar2imuTrans_ = lidar2imuTrans;
             // Get initialization info from lidar odometry
             vector<float> initialization_info;
             m_odom.lock();
-            initialization_info = odomRegister->getOdometry(odomQueue, img_msg->header.stamp.toSec() + estimator.td,lidar2camRot_,lidar2camTrans_);
+            //cam的初始位姿
+            initialization_info = odomRegister->getOdometry(odomQueue, img_msg->header.stamp.toSec() + estimator.td, lidar2imuRot_, lidar2imuTrans_);
             m_odom.unlock();
-
-
+            // 3.3.处理图像数据(初始化, 非线性优化)
+            //   cout<<"vins_ESTIMATOR process STARTED1"<<endl;
+            // ROS_INFO("vins_ESTIMATOR process STARTED2");
             estimator.processImage(image, initialization_info, img_msg->header);
             // double whole_t = t_s.toc();
             // printStatistics(estimator, whole_t);
-
             // 3. Visualization
             std_msgs::Header header = img_msg->header;
             pubOdometry(estimator, header);
@@ -377,30 +383,29 @@ int main(int argc, char **argv)
 
     ROS_INFO("\033[1;32m----> Visual Odometry Estimator Started.\033[0m");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Warn);
-
+    ROS_INFO("RUN HERE");
     readParameters(n);
-    
+
     estimator.setParameter();
 
-    getParam(n,"lvi_sam/extrinsicRot_lidar2cam");
-    getParam(n,"lvi_sam/extrinsicTrans_lidar2cam");
+    getParam(n, "lvi_sam/extrinsicRot");
+    getParam(n, "lvi_sam/extrinsicTrans");
 
     registerPub(n);
-
     //初始化lidar和camera之间的旋转
     odomRegister = new odometryRegister(n);
 
-    ros::Subscriber sub_imu     = n.subscribe(IMU_TOPIC,      5000, imu_callback,  ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 5000, imu_callback, ros::TransportHints().tcpNoDelay());
     //来自Lidar进程的IMU初始化
-    ros::Subscriber sub_odom    = n.subscribe("odometry/imu", 5000, odom_callback);
+    ros::Subscriber sub_odom = n.subscribe("odometry/imu", 5000, odom_callback);
     //来自feature_tracker_node视觉进程
-    ros::Subscriber sub_image   = n.subscribe(PROJECT_NAME + "/vins/feature/feature", 1, feature_callback);
+    ros::Subscriber sub_image = n.subscribe(PROJECT_NAME + "/vins/feature/feature", 1, feature_callback);
     ros::Subscriber sub_restart = n.subscribe(PROJECT_NAME + "/vins/feature/restart", 1, restart_callback);
+
     if (!USE_LIDAR)
         sub_odom.shutdown();
-
     std::thread measurement_process{process};
-
+    
     ros::MultiThreadedSpinner spinner(4);
     spinner.spin();
 

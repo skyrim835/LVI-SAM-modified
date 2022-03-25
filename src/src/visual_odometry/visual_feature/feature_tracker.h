@@ -6,13 +6,14 @@
 #include <execinfo.h>
 #include <csignal>
 
+//pcl放在opencv前面
+
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
 
 #include "camera_models/CameraFactory.h"
 #include "camera_models/CataCamera.h"
 #include "camera_models/PinholeCamera.h"
-
 #include "parameters.h"
 #include "tic_toc.h"
 
@@ -27,10 +28,10 @@ void reduceVector(vector<int> &v, vector<uchar> status);
 
 class FeatureTracker
 {
-  public:
+public:
     FeatureTracker();
 
-    void readImage(const cv::Mat &_img,double _cur_time);
+    void readImage(const cv::Mat &_img, double _cur_time);
 
     void setMask();
 
@@ -46,16 +47,16 @@ class FeatureTracker
 
     void undistortedPoints();
 
-    cv::Mat mask;
-    cv::Mat fisheye_mask;
-    cv::Mat prev_img, cur_img, forw_img;
-    vector<cv::Point2f> n_pts;
+    cv::Mat mask;                        //特征点采样 非极大值抑制（跟踪次数最多）
+    cv::Mat fisheye_mask;                //鱼眼相机mask
+    cv::Mat prev_img, cur_img, forw_img; //上上帧 上一帧 当前帧 （对上一帧的特征点进行光流追踪）
+    vector<cv::Point2f> n_pts;           //从当前帧中提取出来的特征点（待发布的frame至少需要150个特征点）
     vector<cv::Point2f> prev_pts, cur_pts, forw_pts;
-    vector<cv::Point2f> prev_un_pts, cur_un_pts;
+    vector<cv::Point2f> prev_un_pts, cur_un_pts; //去畸变后的归一化坐标
     vector<cv::Point2f> pts_velocity;
-    vector<int> ids;
-    vector<int> track_cnt;
-    map<int, cv::Point2f> cur_un_pts_map;
+    vector<int> ids;                      //forw_img特征点的index
+    vector<int> track_cnt;                //特征点被成功跟踪上的次数（新提取的特征点，跟踪次数为1）
+    map<int, cv::Point2f> cur_un_pts_map; //去畸变后的归一化坐标 <index,坐标>
     map<int, cv::Point2f> prev_un_pts_map;
     camodocal::CameraPtr m_camera;
     double cur_time;
@@ -64,11 +65,9 @@ class FeatureTracker
     static int n_id;
 };
 
-
 class DepthRegister
 {
 public:
-
     ros::NodeHandle n;
     // publisher for visualization
     ros::Publisher pub_depth_feature;
@@ -81,23 +80,22 @@ public:
     const int num_bins = 360;
     vector<vector<PointType>> pointsArray;
 
-    DepthRegister(ros::NodeHandle n_in):
-    n(n_in)
+    DepthRegister(ros::NodeHandle n_in) : n(n_in)
     {
         // messages for RVIZ visualization
         pub_depth_feature = n.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/vins/depth/depth_feature", 5);
-        pub_depth_image =   n.advertise<sensor_msgs::Image>      (PROJECT_NAME + "/vins/depth/depth_image",   5);
-        pub_depth_cloud =   n.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/vins/depth/depth_cloud",   5);
+        pub_depth_image = n.advertise<sensor_msgs::Image>(PROJECT_NAME + "/vins/depth/depth_image", 5);
+        pub_depth_cloud = n.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/vins/depth/depth_cloud", 5);
 
         pointsArray.resize(num_bins);
         for (int i = 0; i < num_bins; ++i)
             pointsArray[i].resize(num_bins);
     }
 
-    sensor_msgs::ChannelFloat32 get_depth(const ros::Time& stamp_cur, const cv::Mat& imageCur, 
-                                          const pcl::PointCloud<PointType>::Ptr& depthCloud,
-                                          const camodocal::CameraPtr& camera_model ,
-                                          const vector<geometry_msgs::Point32>& features_2d)
+    sensor_msgs::ChannelFloat32 get_depth(const ros::Time &stamp_cur, const cv::Mat &imageCur,
+                                          const pcl::PointCloud<PointType>::Ptr &depthCloud,
+                                          const camodocal::CameraPtr &camera_model,
+                                          const vector<geometry_msgs::Point32> &features_2d)
     {
         // 0.1 initialize depth for return
         sensor_msgs::ChannelFloat32 depth_of_point;
@@ -109,11 +107,13 @@ public:
             return depth_of_point;
 
         // 0.3 look up transform at current image time
-        try{
+        try
+        {
             listener.waitForTransform("vins_world", "vins_body_ros", stamp_cur, ros::Duration(0.01));
             listener.lookupTransform("vins_world", "vins_body_ros", stamp_cur, transform);
-        } 
-        catch (tf::TransformException ex){
+        }
+        catch (tf::TransformException ex)
+        {
             // ROS_ERROR("image no tf");
             return depth_of_point;
         }
@@ -125,11 +125,14 @@ public:
         tf::Matrix3x3 m(transform.getRotation());
         m.getRPY(rollCur, pitchCur, yawCur);
         Eigen::Affine3f transNow = pcl::getTransformation(xCur, yCur, zCur, rollCur, pitchCur, yawCur);
-        // 0.3.1  get extrinsic (translation only by assuming z (cam) = x (lidar)) from cam to lidar
-        Eigen::Affine3f transLidar2Cam = pcl::getTransformation(L_C_TX, L_C_TY, L_C_TZ, 0.0, 0.0, 0.0);
-        transNow = transNow * transLidar2Cam; // t_world_lidar * t_lidar_cam = t_world_cam
 
-        // 0.4 transform cloud from global frame to camera frame
+        /**
+         * @brief 修改的地方
+         * depth_cloud已经变成相机的位姿下所拍摄到的点云 但是获取深度时只需要关联lidar和camera 而下面的camera是相机坐标系
+         */
+        Eigen::Affine3f transLidar2Cam = pcl::getTransformation(L_C_TX, L_C_TY, L_C_TZ, 0, 0, 0);
+        transNow = transNow * transLidar2Cam; // t_world_lidar * t_lidar_cam = t_world_cam
+        // // 0.4 transform cloud from global frame to camera frame
         pcl::PointCloud<PointType>::Ptr depth_cloud_local(new pcl::PointCloud<PointType>());
         pcl::transformPointCloud(*depthCloud, *depth_cloud_local, transNow.inverse());
 
@@ -139,10 +142,23 @@ public:
         {
             // normalize 2d feature to a unit sphere
             Eigen::Vector3f feature_cur(features_2d[i].x, features_2d[i].y, features_2d[i].z); // z always equal to 1
-            feature_cur.normalize(); 
-            // convert to ROS standard
+            feature_cur.normalize();
+            // convert to ROS standard 变到与lidar相同的x轴朝前的坐标系
             PointType p;
-            p.x =  feature_cur(2);
+            // //新增
+            // Eigen::Matrix3f cam2lidar, lidar2cam;
+            // Eigen::Vector3f eulerAngle(L_C_RX, L_C_RY, L_C_RZ);
+            // Eigen::AngleAxisf rollAngle(AngleAxisf(eulerAngle(2), Eigen::Vector3f::UnitX()));
+            // Eigen::AngleAxisf pitchAngle(AngleAxisf(eulerAngle(1), Eigen::Vector3f::UnitY()));
+            // Eigen::AngleAxisf yawAngle(AngleAxisf(eulerAngle(0), Eigen::Vector3f::UnitZ()));
+            // lidar2cam = yawAngle * pitchAngle * rollAngle;
+            // cam2lidar = lidar2cam.inverse();
+            // feature_cur = cam2lidar * feature_cur;
+            // p.x = feature_cur(0);
+            // p.y = feature_cur(1);
+            // p.z = feature_cur(2);
+            // //新增结束
+            p.x = feature_cur(2);
             p.y = -feature_cur(0);
             p.z = -feature_cur(1);
             p.intensity = -1; // intensity will be used to save depth
@@ -168,7 +184,7 @@ public:
             // id may be out of boundary
             if (row_id < 0 || row_id >= num_bins || col_id < 0 || col_id >= num_bins)
                 continue;
-            // only keep points that's closer
+            // only keep points that's closer  始终让投影的点云图的深度是最小的.
             float dist = pointDistance(p);
             if (dist < rangeImage.at<float>(row_id, col_id))
             {
@@ -208,7 +224,10 @@ public:
         // 6. create a kd-tree using the spherical depth cloud
         pcl::KdTreeFLANN<PointType>::Ptr kdtree(new pcl::KdTreeFLANN<PointType>());
         kdtree->setInputCloud(depth_cloud_unit_sphere);
-
+        /**
+         * @brief 修改的地方
+         * 
+         */
         // 7. find the feature depth using kd-tree
         vector<int> pointSearchInd;
         vector<float> pointSearchSqDis;
@@ -239,17 +258,19 @@ public:
                                   features_3d_sphere->points[i].z);
 
                 Eigen::Vector3f N = (A - B).cross(B - C);
-                float s = (N(0) * A(0) + N(1) * A(1) + N(2) * A(2)) 
-                        / (N(0) * V(0) + N(1) * V(1) + N(2) * V(2));
-
+                float s = (N(0) * A(0) + N(1) * A(1) + N(2) * A(2)) / (N(0) * V(0) + N(1) * V(1) + N(2) * V(2));
                 float min_depth = min(r1, min(r2, r3));
                 float max_depth = max(r1, max(r2, r3));
                 if (max_depth - min_depth > 2 || s <= 0.5)
                 {
                     continue;
-                } else if (s - max_depth > 0) {
+                }
+                else if (s - max_depth > 0)
+                {
                     s = max_depth;
-                } else if (s - min_depth < 0) {
+                }
+                else if (s - min_depth < 0)
+                {
                     s = min_depth;
                 }
                 // convert feature into cartesian space if depth is available
@@ -263,7 +284,7 @@ public:
 
         // visualize features in cartesian 3d space (including the feature without depth (default 1))
         publishCloud(&pub_depth_feature, features_3d_sphere, stamp_cur, "vins_body_ros");
-        
+
         // update depth value for return
         for (int i = 0; i < (int)features_3d_sphere->size(); ++i)
         {
@@ -282,10 +303,10 @@ public:
                 // convert points from 3D to 2D
                 Eigen::Vector3d p_3d(-depth_cloud_local->points[i].y,
                                      -depth_cloud_local->points[i].z,
-                                      depth_cloud_local->points[i].x);
+                                     depth_cloud_local->points[i].x);
                 Eigen::Vector2d p_2d;
                 camera_model->spaceToPlane(p_3d, p_2d);
-                
+
                 points_2d.push_back(cv::Point2f(p_2d(0), p_2d(1)));
                 points_distance.push_back(pointDistance(depth_cloud_local->points[i]));
             }
@@ -312,22 +333,33 @@ public:
         return depth_of_point;
     }
 
-    void getColor(float p, float np, float&r, float&g, float&b) 
+    void getColor(float p, float np, float &r, float &g, float &b)
     {
         float inc = 6.0 / np;
         float x = p * inc;
-        r = 0.0f; g = 0.0f; b = 0.0f;
-        if ((0 <= x && x <= 1) || (5 <= x && x <= 6)) r = 1.0f;
-        else if (4 <= x && x <= 5) r = x - 4;
-        else if (1 <= x && x <= 2) r = 1.0f - (x - 1);
+        r = 0.0f;
+        g = 0.0f;
+        b = 0.0f;
+        if ((0 <= x && x <= 1) || (5 <= x && x <= 6))
+            r = 1.0f;
+        else if (4 <= x && x <= 5)
+            r = x - 4;
+        else if (1 <= x && x <= 2)
+            r = 1.0f - (x - 1);
 
-        if (1 <= x && x <= 3) g = 1.0f;
-        else if (0 <= x && x <= 1) g = x - 0;
-        else if (3 <= x && x <= 4) g = 1.0f - (x - 3);
+        if (1 <= x && x <= 3)
+            g = 1.0f;
+        else if (0 <= x && x <= 1)
+            g = x - 0;
+        else if (3 <= x && x <= 4)
+            g = 1.0f - (x - 3);
 
-        if (3 <= x && x <= 5) b = 1.0f;
-        else if (2 <= x && x <= 3) b = x - 2;
-        else if (5 <= x && x <= 6) b = 1.0f - (x - 5);
+        if (3 <= x && x <= 5)
+            b = 1.0f;
+        else if (2 <= x && x <= 3)
+            b = x - 2;
+        else if (5 <= x && x <= 6)
+            b = 1.0f - (x - 5);
         r *= 255.0;
         g *= 255.0;
         b *= 255.0;

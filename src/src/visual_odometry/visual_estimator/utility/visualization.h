@@ -29,6 +29,7 @@ extern nav_msgs::Path path;
 extern ros::Publisher pub_pose_graph;
 extern int IMAGE_ROW, IMAGE_COL;
 
+
 void registerPub(ros::NodeHandle &n);
 
 tf::Transform transformConversion(const tf::StampedTransform& t);

@@ -7,12 +7,12 @@
 
 // mtx lock for two threads
 std::mutex mtx_lidar;
-
+// 将5s内的点云放在一起, 并进行体素滤波采样
 // global variable for saving the depthCloud shared between two threads
 pcl::PointCloud<PointType>::Ptr depthCloud(new pcl::PointCloud<PointType>());
 
 // global variables saving the lidar point cloud
-deque<pcl::PointCloud<PointType>> cloudQueue;
+deque<pcl::PointCloud<PointType>> cloudQueue; // 保留5s内的激光点云 (world系)
 deque<double> timeQueue;
 
 // global depth register for obtaining depth of a feature
@@ -22,12 +22,9 @@ DepthRegister *depthRegister;
 ros::Publisher pub_feature;
 ros::Publisher pub_match;
 ros::Publisher pub_restart;
-ros::Publisher pub_cloud;
-ros::Publisher pub_cloud2;
-ros::Publisher pub_cloud3;
 
 // feature tracker variables
-FeatureTracker trackerData[NUM_OF_CAM];
+FeatureTracker trackerData[NUM_OF_CAM];// 一般为单目, NUM_OF_CAM为1
 double first_image_time;
 int pub_count = 1;
 bool first_image_flag = true;
@@ -40,7 +37,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     double cur_img_time = img_msg->header.stamp.toSec();
 
-    if(first_image_flag)
+    if(first_image_flag)// 第一帧
     {
         first_image_flag = false;
         first_image_time = cur_img_time;
@@ -48,6 +45,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         return;
     }
     // detect unstable camera stream
+    // 1.通过时间间隔判断相机数据流是否稳定，有问题则restart
     if (cur_img_time - last_image_time > 1.0 || cur_img_time < last_image_time)
     {
         ROS_WARN("image discontinue! reset the feature tracker!");
@@ -61,6 +59,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     }
     last_image_time = cur_img_time;
     // frequency control
+    // 2.发布频率控制, 20Hz
     if (round(1.0 * pub_count / (cur_img_time - first_image_time)) <= FREQ)
     {
         PUB_THIS_FRAME = true;
@@ -75,7 +74,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     {
         PUB_THIS_FRAME = false;
     }
-
+    // 3.图像格式转换(ROS to OpenCV)
     cv_bridge::CvImageConstPtr ptr;
     if (img_msg->encoding == "8UC1")
     {
@@ -94,14 +93,16 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
     cv::Mat show_img = ptr->image;
     TicToc t_r;
-    for (int i = 0; i < NUM_OF_CAM; i++)
+    // 4.主要操作: 读取图像数据 (光流跟踪, 提取特征)
+    for (int i = 0; i < NUM_OF_CAM; i++) // 分别对每个相机处理
     {
         ROS_DEBUG("processing camera %d", i);
-        if (i != 1 || !STEREO_TRACK)
-            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), cur_img_time);
-        else
+        if (i != 1 || !STEREO_TRACK)  // 读取第一张图片的数据 (单目, 双目)
+            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), cur_img_time);//读取原图像 同时提取线段特征
+        else // 读取第二张图片的数据 (双目)
         {
-            if (EQUALIZE)
+             // 第二张图片不需要提取特征, 只需要进行均衡化处理
+            if (EQUALIZE) //clahe 用于直方图均衡
             {
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
                 clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i].cur_img);
@@ -114,56 +115,60 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             trackerData[i].showUndistortion("undistrotion_" + std::to_string(i));
         #endif
     }
-
+    // 5.更新当前帧新提取的特征点id
     for (unsigned int i = 0;; i++)
     {
         bool completed = false;
         for (int j = 0; j < NUM_OF_CAM; j++)
             if (j != 1 || !STEREO_TRACK)
-                completed |= trackerData[j].updateID(i);
+                completed |= trackerData[j].updateID(i);// 更新特征的id
         if (!completed)
             break;
     }
-
+    // 6.将当前帧特征发布出去, 供estimator_node使用
    if (PUB_THIS_FRAME)
    {
+       // 1.将需要发布的数据都封装在一起 (归一化坐标, 特征点id, 像素坐标, 特征点速度)
         pub_count++;
-        sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
-        sensor_msgs::ChannelFloat32 id_of_point;
-        sensor_msgs::ChannelFloat32 u_of_point;
+        sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);// 待发布的特征点 (归一化坐标xy1)
+        // 下面的数据加入到feature_points的通道中, 封装在一起 (后面还有深度通道)
+        sensor_msgs::ChannelFloat32 id_of_point; // 特征点id
+        sensor_msgs::ChannelFloat32 u_of_point;  // 特征点像素坐标 (uv)
         sensor_msgs::ChannelFloat32 v_of_point;
-        sensor_msgs::ChannelFloat32 velocity_x_of_point;
+        sensor_msgs::ChannelFloat32 velocity_x_of_point; // 特征点速度 (归一化平面坐标xy1)
         sensor_msgs::ChannelFloat32 velocity_y_of_point;
 
         feature_points->header.stamp = img_msg->header.stamp;
-        feature_points->header.frame_id = "vins_body";
+        feature_points->header.frame_id = "vins_body";//即imu坐标系
 
         vector<set<int>> hash_ids(NUM_OF_CAM);
-        for (int i = 0; i < NUM_OF_CAM; i++)
+        for (int i = 0; i < NUM_OF_CAM; i++) // 单目
         {
-            auto &un_pts = trackerData[i].cur_un_pts;
-            auto &cur_pts = trackerData[i].cur_pts;
-            auto &ids = trackerData[i].ids;
-            auto &pts_velocity = trackerData[i].pts_velocity;
+            auto &un_pts = trackerData[i].cur_un_pts;  // 去畸变后的归一化坐标 xy1
+            auto &cur_pts = trackerData[i].cur_pts;  // 像素坐标系 uv
+            auto &ids = trackerData[i].ids; // 特征点id
+            auto &pts_velocity = trackerData[i].pts_velocity; // 特征点速度
+            // 遍历每一个特征点
             for (unsigned int j = 0; j < ids.size(); j++)
             {
                 if (trackerData[i].track_cnt[j] > 1)
                 {
                     int p_id = ids[j];
                     hash_ids[i].insert(p_id);
-                    geometry_msgs::Point32 p;
+                    geometry_msgs::Point32 p; // 归一化坐标 xy1
                     p.x = un_pts[j].x;
                     p.y = un_pts[j].y;
                     p.z = 1;
 
                     feature_points->points.push_back(p);
-                    id_of_point.values.push_back(p_id * NUM_OF_CAM + i);
-                    u_of_point.values.push_back(cur_pts[j].x);
+                    id_of_point.values.push_back(p_id * NUM_OF_CAM + i); // 特征点id
+                    u_of_point.values.push_back(cur_pts[j].x); // 像素坐标
                     v_of_point.values.push_back(cur_pts[j].y);
-                    velocity_x_of_point.values.push_back(pts_velocity[j].x);
+                    velocity_x_of_point.values.push_back(pts_velocity[j].x); // 特征点速度
                     velocity_y_of_point.values.push_back(pts_velocity[j].y);
                 }
             }
+            
         }
 
         feature_points->channels.push_back(id_of_point);
@@ -171,16 +176,16 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature_points->channels.push_back(v_of_point);
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
-
+         // 2.从激光点云中获取特征点的深度
         // get feature depth from lidar point cloud
         pcl::PointCloud<PointType>::Ptr depth_cloud_temp(new pcl::PointCloud<PointType>());
         mtx_lidar.lock();
-        *depth_cloud_temp = *depthCloud;
+        *depth_cloud_temp = *depthCloud;  // 5s内的激光点云
         mtx_lidar.unlock();
 
         sensor_msgs::ChannelFloat32 depth_of_points = depthRegister->get_depth(img_msg->header.stamp, show_img, depth_cloud_temp, trackerData[0].m_camera, feature_points->points);
         feature_points->channels.push_back(depth_of_points);
-        
+        // 3.发布当前帧的特征点云, 给其他node使用
         // skip the first image; since no optical speed on frist image
         if (!init_pub)
         {
@@ -188,7 +193,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         }
         else
             pub_feature.publish(feature_points);
-
+        // 4.在图像上标记提取到的特征点, 发布出去用于显示
         // publish features in image
         if (pub_match.getNumSubscribers() != 0)
         {
@@ -231,17 +236,17 @@ void lidar_callback(const sensor_msgs::PointCloud2ConstPtr& laser_msg)
 {
     static int lidar_count = -1;
     if (++lidar_count % (LIDAR_SKIP+1) != 0)
-        return;
+        return;// 并不是所有激光帧都要
 
-    // 0. listen to transform
+    // 0. listen to transform 获取lidar在世界坐标系的位姿(lidar to world)
     static tf::TransformListener listener;
     static tf::StampedTransform transform;
     try{
         listener.waitForTransform("vins_world", "vins_body_ros", laser_msg->header.stamp, ros::Duration(0.01));
-        listener.lookupTransform("vins_world", "vins_body_ros", laser_msg->header.stamp, transform);
+        listener.lookupTransform("vins_world", "vins_body_ros", laser_msg->header.stamp, transform);//获取lidar和vinsworld之间的转换
     } 
     catch (tf::TransformException ex){
-        ROS_ERROR("lidar no tf");
+        // ROS_ERROR("lidar no tf");
         return;
     }
 
@@ -251,13 +256,13 @@ void lidar_callback(const sensor_msgs::PointCloud2ConstPtr& laser_msg)
     zCur = transform.getOrigin().z();
     tf::Matrix3x3 m(transform.getRotation());
     m.getRPY(rollCur, pitchCur, yawCur);
-    Eigen::Affine3f transNow = pcl::getTransformation(xCur, yCur, zCur, rollCur, pitchCur, yawCur);
+    Eigen::Affine3f transNow = pcl::getTransformation(xCur, yCur, zCur, rollCur, pitchCur, yawCur);//获取lidar帧和vinsword的关系
 
-    // 1. convert laser cloud message to pcl
+    // 1. convert laser cloud message to pcl 激光点云数据格式转换
     pcl::PointCloud<PointType>::Ptr laser_cloud_in(new pcl::PointCloud<PointType>());
-    pcl::fromROSMsg(*laser_msg, *laser_cloud_in);
+    pcl::fromROSMsg(*laser_msg, *laser_cloud_in); //原始的lidar信息
 
-    // 2. downsample new cloud (save memory)
+    // 2. downsample new cloud (save memory) 激光点云采样
     pcl::PointCloud<PointType>::Ptr laser_cloud_in_ds(new pcl::PointCloud<PointType>());
     static pcl::VoxelGrid<PointType> downSizeFilter;
     downSizeFilter.setLeafSize(0.2, 0.2, 0.2);
@@ -265,6 +270,7 @@ void lidar_callback(const sensor_msgs::PointCloud2ConstPtr& laser_msg)
     downSizeFilter.filter(*laser_cloud_in_ds);
     *laser_cloud_in = *laser_cloud_in_ds;
 
+    // 3. 剔除不在相机视野范围内的激光点
     // 3. filter lidar points (only keep points in camera view)
     pcl::PointCloud<PointType>::Ptr laser_cloud_in_filter(new pcl::PointCloud<PointType>());
     for (int i = 0; i < (int)laser_cloud_in->size(); ++i)
@@ -275,22 +281,16 @@ void lidar_callback(const sensor_msgs::PointCloud2ConstPtr& laser_msg)
     }
     *laser_cloud_in = *laser_cloud_in_filter;
 
-    /**
-     * @brief 修改的地方 modified
-     * 
-     */
-    publishCloud(&pub_cloud, laser_cloud_in, laser_msg->header.stamp, "vins_body_ros");
     // TODO: transform to IMU body frame
-    // 4. offset T_lidar -> T_camera 
+    
+    // 5. transform new cloud into global odom frame 点云坐标变换(camera to world)
+    pcl::PointCloud<PointType>::Ptr laser_cloud_global(new pcl::PointCloud<PointType>());
+    pcl::transformPointCloud(*laser_cloud_in, *laser_cloud_global, transNow); //计算当前帧原始点云相对于原点的变换 transNow是原始的点云相对于vins第一帧的转换
+    // 4. offset T_lidar -> T_camera 点云坐标变换(lidar to camera)
     // pcl::PointCloud<PointType>::Ptr laser_cloud_offset(new pcl::PointCloud<PointType>());
     // Eigen::Affine3f transOffset = pcl::getTransformation(L_C_TX, L_C_TY, L_C_TZ, L_C_RX, L_C_RY, L_C_RZ);
-    // pcl::transformPointCloud(*laser_cloud_in, *laser_cloud_offset, transOffset);
-    // *laser_cloud_in = *laser_cloud_offset;
-    publishCloud(&pub_cloud2, laser_cloud_in, laser_msg->header.stamp, "vins_camera");
-    // 5. transform new cloud into global odom frame
-    pcl::PointCloud<PointType>::Ptr laser_cloud_global(new pcl::PointCloud<PointType>());
-    pcl::transformPointCloud(*laser_cloud_in, *laser_cloud_global, transNow);
-    publishCloud(&pub_cloud3, laser_cloud_global, laser_msg->header.stamp, "vins_world");
+    // pcl::transformPointCloud(*laser_cloud_global, *laser_cloud_offset, transOffset);//将位姿转换到当前camera帧
+    // *laser_cloud_global = *laser_cloud_offset;
     // 6. save new cloud
     double timeScanCur = laser_msg->header.stamp.toSec();
     cloudQueue.push_back(*laser_cloud_global);
@@ -364,9 +364,6 @@ int main(int argc, char **argv)
     pub_feature = n.advertise<sensor_msgs::PointCloud>(PROJECT_NAME + "/vins/feature/feature",     5);
     pub_match   = n.advertise<sensor_msgs::Image>     (PROJECT_NAME + "/vins/feature/feature_img", 5);
     pub_restart = n.advertise<std_msgs::Bool>         (PROJECT_NAME + "/vins/feature/restart",     5);
-    pub_cloud =   n.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/vins/feature/cloud_test",   5);
-    pub_cloud2 =   n.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/vins/feature/cloud_test2",   5);
-    pub_cloud3 =   n.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/vins/feature/cloud_test3",   5);
     // two ROS spinners for parallel processing (image and lidar)
     ros::MultiThreadedSpinner spinner(2);
     spinner.spin();

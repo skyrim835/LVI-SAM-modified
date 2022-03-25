@@ -8,7 +8,7 @@
 #include <cassert>
 #include <cstring>
 #include <eigen3/Eigen/Dense>
-
+#include <vector>
 class Utility
 {
   public:
@@ -112,7 +112,7 @@ class Utility
     }
 
     static Eigen::Matrix3d g2R(const Eigen::Vector3d &g);
-
+     
     template <size_t N>
     struct uint_
     {

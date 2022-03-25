@@ -87,11 +87,6 @@ extern ros::Publisher pub_match_img;
 extern ros::Publisher pub_match_msg;
 extern ros::Publisher pub_key_pose;
 
-
-
-
-
-
 class BriefExtractor
 {
 public:

@@ -29,7 +29,7 @@ public:
     ros::Subscriber subOdometry;
     ros::Publisher pubImuOdometry;
     ros::Publisher pubImuPath;
-
+    
     // map -> odom
     tf::Transform map_to_odom;
     tf::TransformBroadcaster tfMap2Odom;
@@ -71,13 +71,13 @@ public:
 
     int key = 1;
     int imuPreintegrationResetId = 0;
-    //此处只计算平移是因为在utility.h的imuConvert函数中已经计算了旋转
-    gtsam::Pose3 imu2Lidar = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
-    gtsam::Pose3 lidar2Imu = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));;
 
+    gtsam::Pose3 imu2Lidar = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
+    gtsam::Pose3 lidar2Imu = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));
 
     IMUPreintegration()
     {
+      
         subImu      = nh.subscribe<sensor_msgs::Imu>  (imuTopic, 2000, &IMUPreintegration::imuHandler, this, ros::TransportHints().tcpNoDelay());
         subOdometry = nh.subscribe<nav_msgs::Odometry>(PROJECT_NAME + "/lidar/mapping/odometry", 5, &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
@@ -122,7 +122,7 @@ public:
         doneFirstOpt = false;
         systemInitialized = false;
     }
-
+    
     void odometryHandler(const nav_msgs::Odometry::ConstPtr& odomMsg)
     {
         double currentCorrectionTime = ROS_TIME(odomMsg);
@@ -149,7 +149,7 @@ public:
             return;
         }
 
-
+        //系统初始化，第一帧
         // 0. initialize system
         if (systemInitialized == false)
         {
@@ -167,6 +167,7 @@ public:
                     break;
             }
             // initial pose
+            //
             prevPose_ = lidarPose.compose(lidar2Imu);
             gtsam::PriorFactor<gtsam::Pose3> priorPose(X(0), prevPose_, priorPoseNoise);
             graphFactors.add(priorPose);
@@ -195,7 +196,7 @@ public:
             return;
         }
 
-
+        //每100帧激光里程计，重置isam2优化器
         // reset graph for speed
         if (key == 100)
         {
@@ -235,7 +236,7 @@ public:
             double imuTime = ROS_TIME(thisImu);
             if (imuTime < currentCorrectionTime - delta_t)
             {
-                double dt = (lastImuT_opt < 0) ? (1.0 / 500.0) : (imuTime - lastImuT_opt);
+                double dt = (lastImuT_opt < 0) ? (1.0 / imuHz) : (imuTime - lastImuT_opt);
                 imuIntegratorOpt_->integrateMeasurement(
                         gtsam::Vector3(thisImu->linear_acceleration.x, thisImu->linear_acceleration.y, thisImu->linear_acceleration.z),
                         gtsam::Vector3(thisImu->angular_velocity.x,    thisImu->angular_velocity.y,    thisImu->angular_velocity.z), dt);
@@ -303,7 +304,7 @@ public:
             {
                 sensor_msgs::Imu *thisImu = &imuQueImu[i];
                 double imuTime = ROS_TIME(thisImu);
-                double dt = (lastImuQT < 0) ? (1.0 / 500.0) :(imuTime - lastImuQT);
+                double dt = (lastImuQT < 0) ? (1.0 / imuHz) :(imuTime - lastImuQT);
 
                 imuIntegratorImu_->integrateMeasurement(gtsam::Vector3(thisImu->linear_acceleration.x, thisImu->linear_acceleration.y, thisImu->linear_acceleration.z),
                                                         gtsam::Vector3(thisImu->angular_velocity.x,    thisImu->angular_velocity.y,    thisImu->angular_velocity.z), dt);
@@ -337,6 +338,9 @@ public:
 
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuMsg)
     {
+        // cout<<extSE3_lidar2imu(0,3)<<" "<<extSE3_lidar2imu(1,3)<<" "<<extSE3_lidar2imu(2,3)<<endl;
+        // cout<<extSE3_imu2lidar(0,3)<<" "<<extSE3_imu2lidar(1,3)<<" "<<extSE3_imu2lidar(2,3)<<endl;
+        //此处的imu信息已经投影到lidar上（差个平移）
         sensor_msgs::Imu thisImu = imuConverter(*imuMsg);
         // publish static tf
         tfMap2Odom.sendTransform(tf::StampedTransform(map_to_odom, thisImu.header.stamp, "map", "odom"));
@@ -348,7 +352,7 @@ public:
             return;
 
         double imuTime = ROS_TIME(&thisImu);
-        double dt = (lastImuT_imu < 0) ? (1.0 / 500.0) : (imuTime - lastImuT_imu);
+        double dt = (lastImuT_imu < 0) ? (1.0 / imuHz) : (imuTime - lastImuT_imu);
         lastImuT_imu = imuTime;
 
         // integrate this single imu message
@@ -366,8 +370,10 @@ public:
 
         // transform imu pose to ldiar
         gtsam::Pose3 imuPose = gtsam::Pose3(currentState.quaternion(), currentState.position());
+        // //经过imuConvert已经计算好了旋转，此处只进行平移
         gtsam::Pose3 lidarPose = imuPose.compose(imu2Lidar);
-
+        //将里程计转到雷达坐标系上
+        //位置 朝向 线速度 角速度
         odometry.pose.pose.position.x = lidarPose.translation().x();
         odometry.pose.pose.position.y = lidarPose.translation().y();
         odometry.pose.pose.position.z = lidarPose.translation().z();
@@ -375,7 +381,7 @@ public:
         odometry.pose.pose.orientation.y = lidarPose.rotation().toQuaternion().y();
         odometry.pose.pose.orientation.z = lidarPose.rotation().toQuaternion().z();
         odometry.pose.pose.orientation.w = lidarPose.rotation().toQuaternion().w();
-        
+        // cout<<"lio部分的里程计:"<<odometry.pose.pose.position.x<<" "<<odometry.pose.pose.position.y<<" "<<odometry.pose.pose.position.z<<endl;
         odometry.twist.twist.linear.x = currentState.velocity().x();
         odometry.twist.twist.linear.y = currentState.velocity().y();
         odometry.twist.twist.linear.z = currentState.velocity().z();
@@ -404,6 +410,7 @@ public:
             pose_stamped.header.frame_id = "odom";
             pose_stamped.pose = odometry.pose.pose;
             imuPath.poses.push_back(pose_stamped);
+            //队列中的头与对列尾时间差大于3s
             while(!imuPath.poses.empty() && abs(imuPath.poses.front().header.stamp.toSec() - imuPath.poses.back().header.stamp.toSec()) > 3.0)
                 imuPath.poses.erase(imuPath.poses.begin());
             if (pubImuPath.getNumSubscribers() != 0)
@@ -420,6 +427,7 @@ public:
         tf::StampedTransform odom_2_baselink = tf::StampedTransform(tCur, thisImu.header.stamp, "odom", "base_link");
         tfOdom2BaseLink.sendTransform(odom_2_baselink);
     }
+    
 };
 
 

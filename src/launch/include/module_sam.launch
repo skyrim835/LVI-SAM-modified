@@ -2,10 +2,10 @@
 
     <arg name="project" default="lvi_sam"/>
     <!-- Lidar odometry param -->
-    <rosparam file="$(find lvi_sam)/config/params_lidar.yaml" command="load" />
+    <rosparam file="$(find lvi_sam)/config/custom/params_lidar.yaml" command="load" />
     <!-- VINS config -->
-    <param name="vins_config_file" type="string" value="$(find lvi_sam)/config/params_camera.yaml" />
-    
+    <param name="vins_config_file" type="string" value="$(find lvi_sam)/config/custom/params_camera.yaml" />
+
     <!-- Lidar odometry -->
     <node pkg="$(arg project)"      type="$(arg project)_imuPreintegration"   name="$(arg project)_imuPreintegration"    output="screen"     respawn="true"/>
     <node pkg="$(arg project)"      type="$(arg project)_imageProjection"     name="$(arg project)_imageProjection"      output="screen"     respawn="true"/>
@@ -18,6 +18,7 @@
     <node pkg="$(arg project)"      type="$(arg project)_visual_loop"         name="$(arg project)_visual_loop"          output="screen"     respawn="true"/>
 
     <!-- Image conversion -->
-    <node pkg="image_transport" type="republish" name="$(arg project)_republish" args="compressed in:=/camera/image_raw raw out:=/camera/image_raw" output="screen" respawn="true"/>
+    <!-- <node pkg="image_transport" type="republish" name="$(arg project)_republish" args="compressed in:=/camera/image_raw raw out:=/camera/image_raw" output="screen" respawn="true"/> -->
 
 </launch>
+

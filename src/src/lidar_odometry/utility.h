@@ -28,14 +28,14 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/crop_box.h> 
+#include <pcl/filters/crop_box.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <tf/LinearMath/Quaternion.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
- 
+
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -54,14 +54,13 @@
 #include <thread>
 #include <mutex>
 
-#include "MahonyAHRS.h"
 #include <Eigen/Geometry>
 #include <Eigen/Core>
+#include "mahonyMine.h"
 
 using namespace std;
 
 typedef pcl::PointXYZI PointType;
-
 
 class ParamServer
 {
@@ -119,9 +118,9 @@ public:
     // voxel filter paprams
     float odometrySurfLeafSize;
     float mappingCornerLeafSize;
-    float mappingSurfLeafSize ;
+    float mappingSurfLeafSize;
 
-    float z_tollerance; 
+    float z_tollerance;
     float rotation_tollerance;
 
     // CPU Params
@@ -129,17 +128,17 @@ public:
     double mappingProcessInterval;
 
     // Surrounding map
-    float surroundingkeyframeAddingDistThreshold; 
-    float surroundingkeyframeAddingAngleThreshold; 
+    float surroundingkeyframeAddingDistThreshold;
+    float surroundingkeyframeAddingAngleThreshold;
     float surroundingKeyframeDensity;
     float surroundingKeyframeSearchRadius;
-    
+
     // Loop closure
     bool loopClosureEnableFlag;
-    int   surroundingKeyframeSize;
+    int surroundingKeyframeSize;
     float historyKeyframeSearchRadius;
     float historyKeyframeSearchTimeDiff;
-    int   historyKeyframeSearchNum;
+    int historyKeyframeSearchNum;
     float historyKeyframeFitnessScore;
 
     // global map visualization radius
@@ -170,7 +169,7 @@ public:
         nh.param<int>(PROJECT_NAME + "/Horizon_SCAN", Horizon_SCAN, 1800);
         nh.param<std::string>(PROJECT_NAME + "/timeField", timeField, "time");
         nh.param<int>(PROJECT_NAME + "/downsampleRate", downsampleRate, 1);
-        nh.param<float>(PROJECT_NAME + "/ang_y",ang_y, 1);
+        nh.param<float>(PROJECT_NAME + "/ang_y", ang_y, 1);
 
         nh.param<float>(PROJECT_NAME + "/imuAccNoise", imuAccNoise, 0.01);
         nh.param<float>(PROJECT_NAME + "/imuGyrNoise", imuGyrNoise, 0.001);
@@ -178,9 +177,10 @@ public:
         nh.param<float>(PROJECT_NAME + "/imuGyrBiasN", imuGyrBiasN, 0.00003);
         nh.param<float>(PROJECT_NAME + "/imuGravity", imuGravity, 9.80511);
         nh.param<int>(PROJECT_NAME + "/imuHz", imuHz, 500);
-        nh.param<vector<double>>(PROJECT_NAME+ "/extrinsicRot", extRotV, vector<double>());
-        nh.param<vector<double>>(PROJECT_NAME+ "/extrinsicRPY", extRPYV, vector<double>());
-        nh.param<vector<double>>(PROJECT_NAME+ "/extrinsicTrans", extTransV, vector<double>());
+        nh.param<vector<double>>(PROJECT_NAME + "/extrinsicRot", extRotV, vector<double>());
+        nh.param<vector<double>>(PROJECT_NAME + "/extrinsicRPY", extRPYV, vector<double>());
+        nh.param<vector<double>>(PROJECT_NAME + "/extrinsicTrans", extTransV, vector<double>());
+
         extRot = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extRotV.data(), 3, 3);
         extRPY = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extRPYV.data(), 3, 3);
         extTrans = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extTransV.data(), 3, 1);
@@ -219,8 +219,8 @@ public:
 
         usleep(100);
     }
-
-    sensor_msgs::Imu imuConverter(const sensor_msgs::Imu& imu_in)
+    //得到投影到lidar的imu信息
+    sensor_msgs::Imu imuConverter(const sensor_msgs::Imu &imu_in)
     {
         sensor_msgs::Imu imu_out = imu_in;
         // rotate acceleration
@@ -231,44 +231,36 @@ public:
         imu_out.linear_acceleration.z = acc.z();
         // rotate gyroscope
         Eigen::Vector3d gyr(imu_in.angular_velocity.x, imu_in.angular_velocity.y, imu_in.angular_velocity.z);
-        gyr = extRot * gyr;
+        gyr = extRot * gyr; // imu作为中间过度 输入是imu相对于世界的 乘上lidar相对于imu的（即imu2lidar）
         imu_out.angular_velocity.x = gyr.x();
         imu_out.angular_velocity.y = gyr.y();
         imu_out.angular_velocity.z = gyr.z();
-        // rotate roll pitch yaw
-        Eigen::Quaterniond q_from(imu_in.orientation.w, imu_in.orientation.x, imu_in.orientation.y, imu_in.orientation.z);
-        Eigen::Quaterniond q_final = q_from * extQRPY;
-
         /**
-         * @brief 修改的地方 modified
-         * 使用Mahony获取姿态角
+         * @brief 修改的地方
+         * 
          */
-        filter.updateIMU(imu_out.angular_velocity.x,imu_out.angular_velocity.y,imu_out.angular_velocity.z,imu_out.linear_acceleration.x,imu_out.linear_acceleration.y,imu_out.linear_acceleration.z);
-        float roll = filter.getRollRadians();
-        float pitch = filter.getPitchRadians();
-        float yaw = filter.getYawRadians();
-        
-
-        Eigen::AngleAxisd rollAngle(roll,Eigen::Vector3d::UnitX());
-        Eigen::AngleAxisd pitchAngle(pitch,Eigen::Vector3d::UnitY());
-        Eigen::AngleAxisd yawAngle(yaw,Eigen::Vector3d::UnitZ());
-        Eigen::Quaterniond q = yawAngle*pitchAngle*rollAngle;
-        if(q_final.w() == 0.0){
-            imu_out.orientation.x = q.x();
-            imu_out.orientation.y = q.y();
-            imu_out.orientation.z = q.z();
-            imu_out.orientation.w = q.w();
-        }else{
-            imu_out.orientation.x = q_final.x();
-            imu_out.orientation.y = q_final.y();
-            imu_out.orientation.z = q_final.z();
-            imu_out.orientation.w = q_final.w();
+        // rotate roll pitch yaw
+        filter.MahonyAHRSupdateIMU(imu_out.angular_velocity.x, imu_out.angular_velocity.y, imu_out.angular_velocity.z, imu_out.linear_acceleration.x, imu_out.linear_acceleration.y, imu_out.linear_acceleration.z);
+        Eigen::Quaterniond q_mahony(filter.getQuaternionW(), filter.getQuaternionX(), filter.getQuaternionY(), filter.getQuaternionZ());
+        Eigen::Quaterniond q_from(imu_in.orientation.w, imu_in.orientation.x, imu_in.orientation.y, imu_in.orientation.z);
+        Eigen::Quaterniond q_final;
+        // q_final = q_mahony;
+        if (q_from.w() == 0.0)
+        {
+            // cout<<"using mahony!"<<q_from.w()<<endl;
+            q_final = q_mahony;
         }
+        else
+        {
+            q_final = q_from * extQRPY;
+        }
+        imu_out.orientation.x = q_final.x();
+        imu_out.orientation.y = q_final.y();
+        imu_out.orientation.z = q_final.z();
+        imu_out.orientation.w = q_final.w();
 
-
-
-        //if (sqrt(q_final.x()*q_final.x() + q_final.y()*q_final.y() + q_final.z()*q_final.z() + q_final.w()*q_final.w()) < 0.1)
-        if(q.norm()<0.1)
+        if (sqrt(q_final.x() * q_final.x() + q_final.y() * q_final.y() + q_final.z() * q_final.z() + q_final.w() * q_final.w()) < 0.1)
+        // if(q.norm()<0.1)
         {
             ROS_ERROR("Invalid quaternion, please use a 9-axis IMU!");
             ros::shutdown();
@@ -278,7 +270,7 @@ public:
     }
 };
 
-template<typename T>
+template <typename T>
 sensor_msgs::PointCloud2 publishCloud(ros::Publisher *thisPub, T thisCloud, ros::Time thisStamp, std::string thisFrame)
 {
     sensor_msgs::PointCloud2 tempCloud;
@@ -290,14 +282,13 @@ sensor_msgs::PointCloud2 publishCloud(ros::Publisher *thisPub, T thisCloud, ros:
     return tempCloud;
 }
 
-template<typename T>
+template <typename T>
 double ROS_TIME(T msg)
 {
     return msg->header.stamp.toSec();
 }
 
-
-template<typename T>
+template <typename T>
 void imuAngular2rosAngular(sensor_msgs::Imu *thisImuMsg, T *angular_x, T *angular_y, T *angular_z)
 {
     *angular_x = thisImuMsg->angular_velocity.x;
@@ -305,8 +296,7 @@ void imuAngular2rosAngular(sensor_msgs::Imu *thisImuMsg, T *angular_x, T *angula
     *angular_z = thisImuMsg->angular_velocity.z;
 }
 
-
-template<typename T>
+template <typename T>
 void imuAccel2rosAccel(sensor_msgs::Imu *thisImuMsg, T *acc_x, T *acc_y, T *acc_z)
 {
     *acc_x = thisImuMsg->linear_acceleration.x;
@@ -314,8 +304,7 @@ void imuAccel2rosAccel(sensor_msgs::Imu *thisImuMsg, T *acc_x, T *acc_y, T *acc_
     *acc_z = thisImuMsg->linear_acceleration.z;
 }
 
-
-template<typename T>
+template <typename T>
 void imuRPY2rosRPY(sensor_msgs::Imu *thisImuMsg, T *rosRoll, T *rosPitch, T *rosYaw)
 {
     double imuRoll, imuPitch, imuYaw;
@@ -328,16 +317,14 @@ void imuRPY2rosRPY(sensor_msgs::Imu *thisImuMsg, T *rosRoll, T *rosPitch, T *ros
     *rosYaw = imuYaw;
 }
 
-
 float pointDistance(PointType p)
 {
-    return sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+    return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
-
 
 float pointDistance(PointType p1, PointType p2)
 {
-    return sqrt((p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y) + (p1.z-p2.z)*(p1.z-p2.z));
+    return sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z));
 }
 
 #endif

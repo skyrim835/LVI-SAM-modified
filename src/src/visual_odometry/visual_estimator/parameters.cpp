@@ -1,29 +1,30 @@
 #include "parameters.h"
-
+#include "yaml-cpp/yaml.h"
 std::string PROJECT_NAME;
 
 double INIT_DEPTH;
-double MIN_PARALLAX;
-double ACC_N, ACC_W;
-double GYR_N, GYR_W;
-
-std::vector<Eigen::Matrix3d> RIC;
-std::vector<Eigen::Vector3d> TIC;
+double MIN_PARALLAX; // 根据平均视差决定merge最老帧还是次新帧
+double ACC_N, ACC_W; // 加速度白噪声和随机游走
+double GYR_N, GYR_W; // 角速度白噪声和随机游走
+// camera to imu 外参
+std::vector<Eigen::Matrix3d> RIC; // 旋转
+std::vector<Eigen::Vector3d> TIC; // 平移
 
 Eigen::Vector3d G{0.0, 0.0, 9.8};
-
+// std::string vio_trajectory_path;
 double BIAS_ACC_THRESHOLD;
 double BIAS_GYR_THRESHOLD;
-double SOLVER_TIME;
+double SOLVER_TIME; // 非线性优化的时间限制
 int NUM_ITERATIONS;
-int ESTIMATE_EXTRINSIC;
-int ESTIMATE_TD;
+int ESTIMATE_EXTRINSIC; // 在线外参标定 (camera to imu)
+int ESTIMATE_TD; // 相机与imu时间戳同步
 int ROLLING_SHUTTER;
 std::string EX_CALIB_RESULT_PATH;
 std::string IMU_TOPIC;
 double ROW, COL;
 double TD, TR;
 
+// double Fx,Fy,Cx,Cy;
 int USE_LIDAR;
 int ALIGN_CAMERA_LIDAR_COORDINATE;
 
@@ -33,6 +34,7 @@ double L_I_TZ;
 double L_I_RX;
 double L_I_RY;
 double L_I_RZ;
+
 int imu_Hz;
 /**
  * @brief 修改的地方
@@ -44,6 +46,13 @@ double L_C_TZ;
 double L_C_RX;
 double L_C_RY;
 double L_C_RZ;
+
+double imuGravity;
+double imuAccNoise;
+double imuGyrNoise;
+double imuAccBiasN;
+double imuGyrBiasN;
+int imuHz;
 
 //从配置文件中读取参数
 void readParameters(ros::NodeHandle &n)
@@ -64,6 +73,8 @@ void readParameters(ros::NodeHandle &n)
     fsSettings["use_lidar"] >> USE_LIDAR;
     fsSettings["align_camera_lidar_estimation"] >> ALIGN_CAMERA_LIDAR_COORDINATE;
 
+    // fsSettings["vio_trajectory_path"]>>vio_trajectory_path;
+
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];
     MIN_PARALLAX = fsSettings["keyframe_parallax"];
@@ -79,7 +90,9 @@ void readParameters(ros::NodeHandle &n)
     L_I_RX = fsSettings["lidar_to_imu_rx"];
     L_I_RY = fsSettings["lidar_to_imu_ry"];
     L_I_RZ = fsSettings["lidar_to_imu_rz"];
+
     imu_Hz = fsSettings["imu_hz"];
+
     L_C_TX = fsSettings["lidar_to_cam_tx"];
     L_C_TY = fsSettings["lidar_to_cam_ty"];
     L_C_TZ = fsSettings["lidar_to_cam_tz"];
@@ -87,7 +100,12 @@ void readParameters(ros::NodeHandle &n)
     L_C_RY = fsSettings["lidar_to_cam_ry"];
     L_C_RZ = fsSettings["lidar_to_cam_rz"];
 
-
+    imuGravity = fsSettings["g_norm"];
+    imuAccNoise = fsSettings["acc_n"];
+    imuGyrNoise = fsSettings["gyr_n"];
+    imuAccBiasN = fsSettings["acc_w"];
+    imuGyrBiasN = fsSettings["gyr_w"];
+    imuHz = fsSettings["imu_hz"];
 
 
     ACC_N = fsSettings["acc_n"];
@@ -97,6 +115,13 @@ void readParameters(ros::NodeHandle &n)
     G.z() = fsSettings["g_norm"];
     ROW = fsSettings["image_height"];
     COL = fsSettings["image_width"];
+
+    // cv::FileNode nf = fsSettings["projection_parameters"];
+    // Fx = static_cast<double>(nf["fx"]);
+    // Fy = static_cast<double>(nf["fy"]);
+    // Cx = static_cast<double>(nf["cx"]);
+    // Cy = static_cast<double>(nf["cy"]);
+
     ROS_INFO("Image dimention: ROW: %f COL: %f ", ROW, COL);
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];

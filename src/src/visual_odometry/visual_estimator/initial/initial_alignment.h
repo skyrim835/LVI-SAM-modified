@@ -85,13 +85,14 @@ public:
     {
         q_lidar_to_cam = tf::Quaternion(0, 1, 0, 0); // rotate orientation // mark: camera - lidar
         q_lidar_to_cam_eigen = Eigen::Quaterniond(0, 0, 0, 1); // rotate position by pi, (w, x, y, z) // mark: camera - lidar
-        pub_latest_odometry = n.advertise<nav_msgs::Odometry>("odometry/test", 1000);
+        // pub_latest_odometry = n.advertise<nav_msgs::Odometry>("odometry/test", 1000);
         // readParameters(n_in);
     }
     
     // convert odometry from ROS Lidar frame to VINS camera frame
-    vector<float> getOdometry(deque<nav_msgs::Odometry>& odomQueue, double img_time,Eigen::Matrix3d lidar2camRot,Eigen::Vector3d lidar2camTrans)
+    vector<float> getOdometry(deque<nav_msgs::Odometry>& odomQueue, double img_time,Eigen::Matrix3d lidar2imuRot,Eigen::Vector3d lidar2imuTrans)
     {
+        //此处的odomQueue是imu在lidar上的投影（加速度 旋转）
         vector<float> odometry_channel;
         odometry_channel.resize(18, -1); // reset id(1), P(3), Q(4), V(3), Ba(3), Bg(3), gravity(1)
 
@@ -122,57 +123,57 @@ public:
                 break;
         }
 
-        // time stamp difference still too large
+        // time stamp difference still too large 原版 0.05
         if (abs(odomCur.header.stamp.toSec() - img_time) > 0.05)
         {
+            cout<<"time stamp difference still too large"<<endl;
             return odometry_channel;
         }
-
+        //求解姿态
         // convert odometry rotation from lidar ROS frame to VINS camera frame (only rotation, assume lidar, camera, and IMU are close enough)
         tf::Quaternion q_odom_lidar;
         tf::quaternionMsgToTF(odomCur.pose.pose.orientation, q_odom_lidar);
          /**
-         * @brief 修改的地方 modified
-         * lidar2cam
+         * @brief 修改的地方
+         * lidar2imu
          */
         tf::Transform t_odom_lidar = tf::Transform(q_odom_lidar, tf::Vector3(odomCur.pose.pose.position.x, odomCur.pose.pose.position.y, odomCur.pose.pose.position.z));
-        Eigen::Matrix3d extRot = lidar2camRot;
-        Eigen::Vector3d extTrans(lidar2camTrans);
+        Eigen::Matrix3d extRot = lidar2imuRot;
+        Eigen::Vector3d extTrans(lidar2imuTrans);
         Eigen::Vector3d ypr = extRot.eulerAngles(2, 1, 0);
-        tf::Transform t_lidar_cam = tf::Transform(tf::createQuaternionFromRPY(ypr.z(), ypr.y(), ypr.x()), tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
-        tf::Transform t_odom_cam = t_odom_lidar * t_lidar_cam;
-        odomCur.pose.pose.position.x = t_odom_cam.getOrigin().x();
-        odomCur.pose.pose.position.y = t_odom_cam.getOrigin().y();
-        odomCur.pose.pose.position.z = t_odom_cam.getOrigin().z();
+        tf::Transform t_lidar_imu = tf::Transform(tf::createQuaternionFromRPY(ypr.z(), ypr.y(), ypr.x()), tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
+        tf::Transform t_odom_imu = t_odom_lidar * t_lidar_imu;
+        // //得到imu里程计
+        odomCur.pose.pose.position.x = t_odom_imu.getOrigin().x();
+        odomCur.pose.pose.position.y = t_odom_imu.getOrigin().y();
+        odomCur.pose.pose.position.z = t_odom_imu.getOrigin().z();
         
-        tf::Matrix3x3 m(t_odom_cam.getRotation());
+        tf::Matrix3x3 m(t_odom_imu.getRotation());
         double roll, pitch, yaw;
         m.getRPY(roll, pitch, yaw);
 
         // Rotate orientation to VINS world
-        tf::Quaternion q_world_cam = tf::createQuaternionFromRPY(0, 0, M_PI) * t_odom_cam.getRotation();
-        tf::quaternionTFToMsg(q_world_cam, odomCur.pose.pose.orientation);
-       
-    
+
+        tf::Quaternion q_world_imu;
+        q_world_imu.setRPY(roll,pitch,yaw);
+        tf::quaternionTFToMsg(q_world_imu, odomCur.pose.pose.orientation);//只计算了朝向
+
         // convert odometry position from lidar ROS frame to VINS camera frame
+        //将位置求解
         Eigen::Vector3d p_eigen(odomCur.pose.pose.position.x, odomCur.pose.pose.position.y, odomCur.pose.pose.position.z);
         Eigen::Vector3d v_eigen(odomCur.twist.twist.linear.x, odomCur.twist.twist.linear.y, odomCur.twist.twist.linear.z);
-        Eigen::Vector3d p_eigen_new = q_lidar_to_cam_eigen * p_eigen;
-        Eigen::Vector3d v_eigen_new = q_lidar_to_cam_eigen * v_eigen;
+
+        Eigen::Vector3d p_eigen_new =  p_eigen;
+        Eigen::Vector3d v_eigen_new =  v_eigen;
 
         odomCur.pose.pose.position.x = p_eigen_new.x();
         odomCur.pose.pose.position.y = p_eigen_new.y();
         odomCur.pose.pose.position.z = p_eigen_new.z();
+        // odomCur.pose.pose.position.z = 0;
 
         odomCur.twist.twist.linear.x = v_eigen_new.x();
         odomCur.twist.twist.linear.y = v_eigen_new.y();
         odomCur.twist.twist.linear.z = v_eigen_new.z();
-        
-
-        odomCur.header.stamp = ros::Time().fromSec(img_time);
-        odomCur.header.frame_id = "vins_world";
-        odomCur.child_frame_id = "vins_body";
-        pub_latest_odometry.publish(odomCur);
 
         odometry_channel[0] = odomCur.pose.covariance[0];
         odometry_channel[1] = odomCur.pose.pose.position.x;

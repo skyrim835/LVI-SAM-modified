@@ -2,7 +2,7 @@
 
 using namespace ros;
 using namespace Eigen;
-ros::Publisher pub_odometry, pub_latest_odometry, pub_latest_odometry_ros,pub_latest_odometry_test;
+ros::Publisher pub_odometry, pub_latest_odometry, pub_latest_odometry_ros;
 ros::Publisher pub_path;
 ros::Publisher pub_point_cloud, pub_margin_cloud;
 ros::Publisher pub_key_poses;
@@ -19,21 +19,21 @@ CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
 
+
 void registerPub(ros::NodeHandle &n)
 {
-    pub_latest_odometry     = n.advertise<nav_msgs::Odometry>               (PROJECT_NAME + "/vins/odometry/imu_propagate", 1000);
-    pub_latest_odometry_ros = n.advertise<nav_msgs::Odometry>               (PROJECT_NAME + "/vins/odometry/imu_propagate_ros", 1000);
-    pub_latest_odometry_test= n.advertise<nav_msgs::Odometry>               (PROJECT_NAME + "/vins/odometry/imu_propagate_test", 1000);
-    pub_path                = n.advertise<nav_msgs::Path>                   (PROJECT_NAME + "/vins/odometry/path", 1000);
-    pub_odometry            = n.advertise<nav_msgs::Odometry>               (PROJECT_NAME + "/vins/odometry/odometry", 1000);
-    pub_point_cloud         = n.advertise<sensor_msgs::PointCloud>          (PROJECT_NAME + "/vins/odometry/point_cloud", 1000);
-    pub_margin_cloud        = n.advertise<sensor_msgs::PointCloud>          (PROJECT_NAME + "/vins/odometry/history_cloud", 1000);
-    pub_key_poses           = n.advertise<visualization_msgs::Marker>       (PROJECT_NAME + "/vins/odometry/key_poses", 1000);
-    pub_camera_pose         = n.advertise<nav_msgs::Odometry>               (PROJECT_NAME + "/vins/odometry/camera_pose", 1000);
-    pub_camera_pose_visual  = n.advertise<visualization_msgs::MarkerArray>  (PROJECT_NAME + "/vins/odometry/camera_pose_visual", 1000);
-    pub_keyframe_pose       = n.advertise<nav_msgs::Odometry>               (PROJECT_NAME + "/vins/odometry/keyframe_pose", 1000);
-    pub_keyframe_point      = n.advertise<sensor_msgs::PointCloud>          (PROJECT_NAME + "/vins/odometry/keyframe_point", 1000);
-    pub_extrinsic           = n.advertise<nav_msgs::Odometry>               (PROJECT_NAME + "/vins/odometry/extrinsic", 1000);
+    pub_latest_odometry = n.advertise<nav_msgs::Odometry>(PROJECT_NAME + "/vins/odometry/imu_propagate", 1000);
+    pub_latest_odometry_ros = n.advertise<nav_msgs::Odometry>(PROJECT_NAME + "/vins/odometry/imu_propagate_ros", 1000);
+    pub_path = n.advertise<nav_msgs::Path>(PROJECT_NAME + "/vins/odometry/path", 1000);
+    pub_odometry = n.advertise<nav_msgs::Odometry>(PROJECT_NAME + "/vins/odometry/odometry", 1000);
+    pub_point_cloud = n.advertise<sensor_msgs::PointCloud>(PROJECT_NAME + "/vins/odometry/point_cloud", 1000);
+    pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>(PROJECT_NAME + "/vins/odometry/history_cloud", 1000);
+    pub_key_poses = n.advertise<visualization_msgs::Marker>(PROJECT_NAME + "/vins/odometry/key_poses", 1000);
+    pub_camera_pose = n.advertise<nav_msgs::Odometry>(PROJECT_NAME + "/vins/odometry/camera_pose", 1000);
+    pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>(PROJECT_NAME + "/vins/odometry/camera_pose_visual", 1000);
+    pub_keyframe_pose = n.advertise<nav_msgs::Odometry>(PROJECT_NAME + "/vins/odometry/keyframe_pose", 1000);
+    pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>(PROJECT_NAME + "/vins/odometry/keyframe_point", 1000);
+    pub_extrinsic = n.advertise<nav_msgs::Odometry>(PROJECT_NAME + "/vins/odometry/extrinsic", 1000);
 
     cameraposevisual.setScale(1);
     cameraposevisual.setLineWidth(0.05);
@@ -41,7 +41,7 @@ void registerPub(ros::NodeHandle &n)
     keyframebasevisual.setLineWidth(0.01);
 }
 
-tf::Transform transformConversion(const tf::StampedTransform& t)
+tf::Transform transformConversion(const tf::StampedTransform &t)
 {
     double xCur, yCur, zCur, rollCur, pitchCur, yawCur;
     xCur = t.getOrigin().x();
@@ -49,19 +49,31 @@ tf::Transform transformConversion(const tf::StampedTransform& t)
     zCur = t.getOrigin().z();
     tf::Matrix3x3 m(t.getRotation());
     m.getRPY(rollCur, pitchCur, yawCur);
-    return tf::Transform(tf::createQuaternionFromRPY(rollCur, pitchCur, yawCur), tf::Vector3(xCur, yCur, zCur));;
+    return tf::Transform(tf::createQuaternionFromRPY(rollCur, pitchCur, yawCur), tf::Vector3(xCur, yCur, zCur));
+    ;
 }
 
 //输出predict处理后的P，V，Q
-void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, const std_msgs::Header &header, const int& failureId)
+void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, const std_msgs::Header &header, const int &failureId)
 {
+    // tf::Quaternion quat(0,1,0,0);
+    // double roll,pitch,yaw;
+    // tf::Matrix3x3(quat).getRPY(roll,pitch,yaw);
+    // cout<<"0,1,0,0: "<<roll<<" "<<pitch<<" "<<yaw<<endl;
+    // ROS_INFO("test %f %f %f",roll,pitch,yaw);
+    // ROS_INFO("after q");
+
+    //此处的P V Q是imu
     static tf::TransformBroadcaster br;
     static tf::TransformListener listener;
     static double last_align_time = -1;
 
     // Quternion not normalized
     if (Q.x() * Q.x() + Q.y() * Q.y() + Q.z() * Q.z() + Q.w() * Q.w() < 0.99)
+    {
+        // cout << "Q较小" << endl;
         return;
+    }
 
     // imu odometry in camera frame
     nav_msgs::Odometry odometry;
@@ -71,6 +83,7 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.pose.pose.position.x = P.x();
     odometry.pose.pose.position.y = P.y();
     odometry.pose.pose.position.z = P.z();
+    // cout<<"imu部分的里程计:"<<P.x()<<" "<<P.y()<<" "<<P.z()<<endl;
     odometry.pose.pose.orientation.x = Q.x();
     odometry.pose.pose.orientation.y = Q.y();
     odometry.pose.pose.orientation.z = Q.z();
@@ -81,23 +94,17 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     pub_latest_odometry.publish(odometry);
 
     /**
-     * @brief 修改的地方 modified
-     * 
+     * @brief 修改的地方
+     * 输入为imu里程计，并且需要被lio使用，所以用lidar2imu
      */
-    tf::Quaternion tf_quat;
-    tf::quaternionMsgToTF(odometry.pose.pose.orientation, tf_quat);
-    tf::Matrix3x3 mi(tf_quat);
-    double roll, pitch, yaw;
-    mi.getRPY(roll, pitch, yaw);
-
-    // // imu odometry in ROS format (change rotation), used for lidar odometry initial guess
+    //imu odometry in ROS format (change rotation), used for lidar odometry initial guess
     odometry.pose.covariance[0] = double(failureId); // notify lidar odometry failure
-    tf::Transform t_world_cam = tf::Transform(tf::Quaternion(Q.x(), Q.y(), Q.z(), Q.w()), tf::Vector3(P.x(), P.y(), P.z()));
-    Eigen::Vector3d extTrans(L_C_TX, L_C_TY, L_C_TZ);
-    tf::Quaternion q_lidar_cam = tf::createQuaternionFromRPY(L_C_RX, L_C_RY, L_C_RZ);
-    tf::Transform t_lidar_cam = tf::Transform(q_lidar_cam, tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
-    tf::Transform t_cam_lidar = t_lidar_cam.inverse();
-    tf::Transform t_world_lidar = t_world_cam * t_cam_lidar; 
+    tf::Transform t_world_imu = tf::Transform(tf::Quaternion(Q.x(), Q.y(), Q.z(), Q.w()), tf::Vector3(P.x(), P.y(), P.z()));
+    Eigen::Vector3d extTrans(L_I_TX, L_I_TY, L_I_TZ);
+    tf::Quaternion q_lidar_imu = tf::createQuaternionFromRPY(L_I_RX, L_I_RY, L_I_RZ);
+    tf::Transform t_lidar_imu = tf::Transform(q_lidar_imu, tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
+    tf::Transform t_imu_lidar = t_lidar_imu.inverse();
+    tf::Transform t_world_lidar = t_world_imu * t_imu_lidar;
     // imu odometry in ROS format (change rotation), used for lidar odometry initial guess
     nav_msgs::Odometry test_odom;
     test_odom.header = header;
@@ -108,10 +115,10 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     test_odom.pose.pose.position.z = t_world_lidar.getOrigin().z();
     tf::Quaternion t_world_lidar_q = t_world_lidar.getRotation();
     tf::quaternionTFToMsg(t_world_lidar_q, test_odom.pose.pose.orientation);
-    pub_latest_odometry_ros.publish(test_odom);
 
-    tf::Matrix3x3 mw(t_world_lidar.getRotation());
-    mw.getRPY(roll, pitch, yaw);
+    pub_latest_odometry_ros.publish(test_odom); //lio部分接收的信息
+    // tf::StampedTransform trans_world_vinsbody_ros = tf::StampedTransform(t_world_lidar, header.stamp, "vins_world", "vins_body_ros");
+
     // TF of camera in vins_world in ROS format (change rotation), used for depth registration
     tf::StampedTransform trans_world_vinsbody_ros = tf::StampedTransform(t_world_lidar, header.stamp, "vins_world", "vins_body_ros");
 
@@ -119,25 +126,31 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
 
     if (ALIGN_CAMERA_LIDAR_COORDINATE)
     {
-        static tf::Transform t_odom_world = tf::Transform(tf::createQuaternionFromRPY(0, 0, M_PI), tf::Vector3(0, 0, 0));
+        //获取lidar odom与vins world之间的转换
+        static tf::Transform t_odom_world = tf::Transform(tf::createQuaternionFromRPY(L_I_RX, L_I_RY, L_I_RZ), tf::Vector3(L_I_TX, L_I_TY, L_I_TZ));
+
         if (header.stamp.toSec() - last_align_time > 1.0)
         {
+
             try
             {
+
                 tf::StampedTransform trans_odom_baselink;
-                listener.lookupTransform("odom","base_link", ros::Time(0), trans_odom_baselink);
+                listener.lookupTransform("odom", "base_link", ros::Time(0), trans_odom_baselink);
                 t_odom_world = transformConversion(trans_odom_baselink) * transformConversion(trans_world_vinsbody_ros).inverse();
                 last_align_time = header.stamp.toSec();
-            } 
-            catch (tf::TransformException ex){}
+            }
+            catch (tf::TransformException ex)
+            {
+            }
         }
         br.sendTransform(tf::StampedTransform(t_odom_world, header.stamp, "odom", "vins_world"));
-    } 
+    }
     else
     {
-        tf::Transform t_static = tf::Transform(tf::createQuaternionFromRPY(0, 0, M_PI), tf::Vector3(0, 0, 0));
+        tf::Transform t_static = tf::Transform(tf::createQuaternionFromRPY(L_I_RX, L_I_RY, L_I_RZ), tf::Vector3(L_I_TX, L_I_TY, L_I_TZ));
         br.sendTransform(tf::StampedTransform(t_static, header.stamp, "odom", "vins_world"));
-    }    
+    }
 }
 
 void printStatistics(const Estimator &estimator, double t)
@@ -201,6 +214,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         odometry.twist.twist.linear.x = estimator.Vs[WINDOW_SIZE].x();
         odometry.twist.twist.linear.y = estimator.Vs[WINDOW_SIZE].y();
         odometry.twist.twist.linear.z = estimator.Vs[WINDOW_SIZE].z();
+
         pub_odometry.publish(odometry);
 
         static double path_save_time = -1;
@@ -258,6 +272,7 @@ void pubKeyPoses(const Estimator &estimator, const std_msgs::Header &header)
 
 void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
 {
+
     if (pub_camera_pose_visual.getNumSubscribers() == 0)
         return;
 
@@ -288,7 +303,6 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
     }
 }
 
-
 void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
 {
     if (pub_point_cloud.getNumSubscribers() != 0)
@@ -308,7 +322,7 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
                 continue;
             if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
                 continue;
-            
+
             int imu_i = it_per_id.start_frame;
             Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
             Vector3d w_pts_i = estimator.Rs[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.Ps[imu_i];
@@ -325,10 +339,10 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
                 intensity_channel.values.push_back(1);
         }
 
-        point_cloud.channels.push_back(intensity_channel);
+        point_cloud.channels.push_back(intensity_channel);//红色的点表示密度等于0
         pub_point_cloud.publish(point_cloud);
     }
-    
+
     // pub margined potin
     if (pub_margin_cloud.getNumSubscribers() != 0)
     {
@@ -340,14 +354,13 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
         intensity_channel.name = "intensity";
 
         for (auto &it_per_id : estimator.f_manager.feature)
-        { 
+        {
             int used_num;
             used_num = it_per_id.feature_per_frame.size();
             if (!(used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
                 continue;
 
-            if (it_per_id.start_frame == 0 && it_per_id.feature_per_frame.size() <= 2 
-                && it_per_id.solve_flag == 1 )
+            if (it_per_id.start_frame == 0 && it_per_id.feature_per_frame.size() <= 2 && it_per_id.solve_flag == 1)
             {
                 int imu_i = it_per_id.start_frame;
                 Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
@@ -371,10 +384,9 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
     }
 }
 
-
 void pubTF(const Estimator &estimator, const std_msgs::Header &header)
 {
-    if( estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
+    if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
     static tf::TransformBroadcaster br;
     tf::Transform transform;
@@ -443,20 +455,18 @@ void pubKeyframe(const Estimator &estimator)
         odometry.pose.pose.orientation.w = R.w();
 
         pub_keyframe_pose.publish(odometry);
-
-
+    
         sensor_msgs::PointCloud point_cloud;
         point_cloud.header = estimator.Headers[WINDOW_SIZE - 2];
         for (auto &it_per_id : estimator.f_manager.feature)
         {
             int frame_size = it_per_id.feature_per_frame.size();
-            if(it_per_id.start_frame < WINDOW_SIZE - 2 && it_per_id.start_frame + frame_size - 1 >= WINDOW_SIZE - 2 && it_per_id.solve_flag == 1)
+            if (it_per_id.start_frame < WINDOW_SIZE - 2 && it_per_id.start_frame + frame_size - 1 >= WINDOW_SIZE - 2 && it_per_id.solve_flag == 1)
             {
 
                 int imu_i = it_per_id.start_frame;
                 Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-                Vector3d w_pts_i = estimator.Rs[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0])
-                                      + estimator.Ps[imu_i];
+                Vector3d w_pts_i = estimator.Rs[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.Ps[imu_i];
                 geometry_msgs::Point32 p;
                 p.x = w_pts_i(0);
                 p.y = w_pts_i(1);

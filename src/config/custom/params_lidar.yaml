@@ -1,37 +1,38 @@
-# project name
+# project name 11.1之前的数据
 PROJECT_NAME: "lvi_sam"
 
 lvi_sam:
 
   # Topics
-  pointCloudTopic: "/points_raw"               # Point cloud data
-  imuTopic: "/imu_raw"                         # IMU data
+  pointCloudTopic: "/lslidar_point_cloud"               # Point cloud data
+  imuTopic: "/camera/imu"                         # IMU data
 
   # Heading
   useImuHeadingInitialization: true          # if using GPS data, set to "true"
   
   # Export settings
   savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
-  savePCDDirectory: "/Downloads/LOAM/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
+  savePCDDirectory: "/software/LVI-SAM-updated4.0/picresults/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
 
   # Sensor Settings
-  N_SCAN: 16                                  # number of lidar channel (i.e., 16, 32, 64, 128)
-  Horizon_SCAN: 1800                          # lidar horizontal resolution (Velodyne:1800, Ouster:512,1024,2048)
+  N_SCAN: 32                                  # number of lidar channel (i.e., 16, 32, 64, 128)
+  Horizon_SCAN: 2000                         # lidar horizontal resolution (Velodyne:1800, Ouster:512,1024,2048)
+  ang_y: 1.0                                  #ang/N_SCAN在纵向激光头分布的角度/线数
   timeField: "time"                           # point timestamp field, Velodyne - "time", Ouster - "t"
   downsampleRate: 1                           # default: 1. Downsample your data if too many points. i.e., 16 = 64 / 4, 16 = 16 / 1 
 
   # IMU Settings
-  imuAccNoise: 3.9939570888238808e-03
-  imuGyrNoise: 1.5636343949698187e-03
-  imuAccBiasN: 6.4356659353532566e-05
-  imuGyrBiasN: 3.5640318696367613e-05
-  imuGravity: 9.80511
+  imuAccNoise: 2.8204438138836063e-02  
+  imuGyrNoise: 2.4927177105924072e-03 
+  imuAccBiasN: 4.0739558582909998e-04 
+  imuGyrBiasN: 1.7029730578800357e-05
+  imuGravity: 9.81007
+  imuHz: 400 
   
-  # Extrinsics (lidar -> IMU) //suppose to be IMU->lidar
-  extrinsicTrans: [0.0, 0.0, 0.0]
-  extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1] #绕IMU的y轴旋转180°得到该旋转矩阵
-  extrinsicRPY: [0, 1, 0, -1, 0, 0, 0, 0, 1]
-
+  # Extrinsics (IMU -> lidar)
+  extrinsicTrans: [0.0368705,-0.115981,-0.129079]
+  extrinsicRot: [-0.999929,-0.00784259,0.00894732,-0.0090834,0.0174902,-0.999806,0.00768457,-0.999816,-0.0175602]
+  extrinsicRPY: [-0.999929,-0.00784259,0.00894732,-0.0090834,0.0174902,-0.999806,0.00768457,-0.999816,-0.0175602]
   # LOAM feature threshold
   edgeThreshold: 1.0
   surfThreshold: 0.1

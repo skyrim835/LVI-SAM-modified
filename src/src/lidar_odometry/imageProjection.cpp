@@ -18,6 +18,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (PointXYZIRT,
     (uint16_t, ring, ring) (float, time, time)
 )
 
+
 // Ouster
 // struct PointXYZIRT {
 //     PCL_ADD_POINT4D;
@@ -82,12 +83,10 @@ void remove (const pcl::PointCloud<PointXYZIRT> &cloud_in, pcl::PointCloud<Point
   }
 }
 
-
-
 class ImageProjection : public ParamServer
 {
 private:
-    const int queueLength = imuHz; //500hz 500 400hz 400 100hz 100
+    const int queueLength = imuHz;//500hz 500 400hz 400 100hz 100
     std::mutex imuLock;
     std::mutex odoLock;
 
@@ -102,6 +101,7 @@ private:
 
     ros::Subscriber subOdom;
     std::deque<nav_msgs::Odometry> odomQueue;
+
 
     std::deque<sensor_msgs::PointCloud2> cloudQueue;
     sensor_msgs::PointCloud2 currentCloudMsg;
@@ -133,13 +133,13 @@ private:
     double timeScanNext;
     std_msgs::Header cloudHeader;
 
-
 public:
     ImageProjection():
     deskewFlag(0)
     {
         subImu        = nh.subscribe<sensor_msgs::Imu>        (imuTopic, 2000, &ImageProjection::imuHandler, this, ros::TransportHints().tcpNoDelay());
         subOdom       = nh.subscribe<nav_msgs::Odometry>      (PROJECT_NAME + "/vins/odometry/imu_propagate_ros", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+    
         subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>(pointCloudTopic, 5, &ImageProjection::cloudHandler, this, ros::TransportHints().tcpNoDelay());
 
         pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2> (PROJECT_NAME + "/lidar/deskew/cloud_deskewed", 5);
@@ -199,8 +199,10 @@ public:
 
     void odometryHandler(const nav_msgs::Odometry::ConstPtr& odometryMsg)
     {
+        // cout<<"vins odom"<<odometryMsg->header.stamp<<endl;
         std::lock_guard<std::mutex> lock2(odoLock);
         odomQueue.push_back(*odometryMsg);
+        // cout<<odomQueue.size()<<endl;
     }
 
     void cloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudMsg)
@@ -222,6 +224,7 @@ public:
 
     bool cachePointCloud(const sensor_msgs::PointCloud2ConstPtr& laserCloudMsg)
     {
+        // cout<<"run here:"<<ros::Time::now()<<endl;
         // cache point cloud
         cloudQueue.push_back(*laserCloudMsg);
         if (cloudQueue.size() <= 2)
@@ -239,8 +242,9 @@ public:
         }
 
         //convert cloud
+        // cout<<"run here1"<<endl;
         pcl::fromROSMsg(currentCloudMsg, *laserCloudIn);
-
+        // cout<<"run here2"<<endl;
 
         //移除Nan
         std::vector<int> indices;
@@ -255,7 +259,7 @@ public:
             ros::shutdown();
         }
         /**
-         * @brief 修改的地方 modified
+         * @brief 修改的地方
          * 
          */
         int ringFlag = 1;
@@ -275,7 +279,7 @@ public:
         }     
 
         // check point time
-        deskewFlag = 1;
+        // deskewFlag = 1;
         if (deskewFlag == 0)
         {
             deskewFlag = -1;
@@ -380,6 +384,12 @@ public:
     void odomDeskewInfo()
     {
         cloudInfo.odomAvailable = false;
+        /**
+         * @brief 修改的地方
+         * 直接用中值积分算得的imu里程计效果不好
+         */
+        // if(!imuQueue.empty())
+        //     return;
 
         while (!odomQueue.empty())
         {
@@ -389,15 +399,19 @@ public:
                 break;
         }
 
+        /**
+         * @brief 修改的地方
+         * 当lio不可用时再用vins
+         */
         if (odomQueue.empty())
-            return;
+                return;
 
         if (odomQueue.front().header.stamp.toSec() > timeScanCur)
             return;
+        
 
         // get start odometry at the beinning of the scan
         nav_msgs::Odometry startOdomMsg;
-
         for (int i = 0; i < (int)odomQueue.size(); ++i)
         {
             startOdomMsg = odomQueue[i];
@@ -407,7 +421,7 @@ public:
             else
                 break;
         }
-
+        
         tf::Quaternion orientation;
         tf::quaternionMsgToTF(startOdomMsg.pose.pose.orientation, orientation);
 
@@ -427,12 +441,11 @@ public:
 
         // get end odometry at the end of the scan
         odomDeskewFlag = false;
-
         if (odomQueue.back().header.stamp.toSec() < timeScanNext)
             return;
+        
 
         nav_msgs::Odometry endOdomMsg;
-
         for (int i = 0; i < (int)odomQueue.size(); ++i)
         {
             endOdomMsg = odomQueue[i];
@@ -442,6 +455,7 @@ public:
             else
                 break;
         }
+        
 
         if (int(round(startOdomMsg.pose.covariance[0])) != int(round(endOdomMsg.pose.covariance[0])))
             return;
@@ -459,7 +473,7 @@ public:
 
         odomDeskewFlag = true;
     }
-
+    //获取pointtime时刻的rotation，为单个point去畸变
     void findRotation(double pointTime, float *rotXCur, float *rotYCur, float *rotZCur)
     {
         *rotXCur = 0; *rotYCur = 0; *rotZCur = 0;
@@ -486,19 +500,19 @@ public:
             *rotZCur = imuRotZ[imuPointerFront] * ratioFront + imuRotZ[imuPointerBack] * ratioBack;
         }
     }
-
+    // 获取relTime时刻的位移, 为单个point去畸变 (relTime是相对于起始时刻的时间)
     void findPosition(double relTime, float *posXCur, float *posYCur, float *posZCur)
     {
         *posXCur = 0; *posYCur = 0; *posZCur = 0;
 
-        // if (cloudInfo.odomAvailable == false || odomDeskewFlag == false)
-        //     return;
+        if (cloudInfo.odomAvailable == false || odomDeskewFlag == false)
+            return;
 
-        // float ratio = relTime / (timeScanNext - timeScanCur);
+        float ratio = relTime / (timeScanNext - timeScanCur);
 
-        // *posXCur = ratio * odomIncreX;
-        // *posYCur = ratio * odomIncreY;
-        // *posZCur = ratio * odomIncreZ;
+        *posXCur = ratio * odomIncreX;
+        *posYCur = ratio * odomIncreY;
+        *posZCur = ratio * odomIncreZ;
     }
 
     PointType deskewPoint(PointType *point, double relTime)
@@ -552,11 +566,12 @@ public:
             thisPoint.intensity = laserCloudIn->points[i].intensity;
             int rowIdn;
             /**
-             * @brief 修改的地方 modified
+             * @brief 修改的地方
              * 
              */
             if(has_ring)
             {
+                // cout<<"has_ring"<<endl;
                 rowIdn = laserCloudIn->points[i].ring;
             }else
             {
@@ -570,7 +585,7 @@ public:
             if (rowIdn % downsampleRate != 0)
                 continue;
 
-            float horizonAngle = atan2(thisPoint.x, thisPoint.y) * 180 / M_PI;
+            float horizonAngle = atan2(thisPoint.x, thisPoint.y) * 180 / M_PI; //即thisPoint.x/thisPoint.y 得到离y轴的角度
 
             static float ang_res_x = 360.0/float(Horizon_SCAN);
             int columnIdn = -round((horizonAngle-90.0)/ang_res_x) + Horizon_SCAN/2;
@@ -580,13 +595,14 @@ public:
             if (columnIdn < 0 || columnIdn >= Horizon_SCAN)
                 continue;
 
-            float range = pointDistance(thisPoint);
+            float range = pointDistance(thisPoint);//当前激光点云深度
             
             if (range < 1.0)
                 continue;
 
             if (rangeMat.at<float>(rowIdn, columnIdn) != FLT_MAX)
                 continue;
+
 
             // for the amsterdam dataset
             // if (range < 6.0 && rowIdn <= 7 && (columnIdn >= 1600 || columnIdn <= 200))
@@ -595,12 +611,12 @@ public:
             //     continue;
 
             rangeMat.at<float>(rowIdn, columnIdn) = range;
-
+        
             thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time); // Velodyne
             // thisPoint = deskewPoint(&thisPoint, (float)laserCloudIn->points[i].t / 1000000000.0); // Ouster
 
             int index = columnIdn  + rowIdn * Horizon_SCAN;
-            fullCloud->points[index] = thisPoint;
+            fullCloud->points[index] = thisPoint;//获取去除畸变后的点云
         }
     }
 
@@ -608,11 +624,11 @@ public:
     {
         int count = 0;
         // extract segmented cloud for lidar odometry
-        for (int i = 0; i < N_SCAN; ++i)
+        for (int i = 0; i < N_SCAN; ++i) //32线 纵向
         {
-            cloudInfo.startRingIndex[i] = count - 1 + 5;
+            cloudInfo.startRingIndex[i] = count - 1 + 5;//提取特征时不考虑前5个
 
-            for (int j = 0; j < Horizon_SCAN; ++j)
+            for (int j = 0; j < Horizon_SCAN; ++j) //一圈具有的分辨率
             {
                 if (rangeMat.at<float>(i,j) != FLT_MAX)
                 {
@@ -620,13 +636,14 @@ public:
                     cloudInfo.pointColInd[count] = j;
                     // save range info
                     cloudInfo.pointRange[count] = rangeMat.at<float>(i,j);
+                    // cout<<"lidar depth: "<<cloudInfo.pointRange[count]<<endl;
                     // save extracted cloud
                     extractedCloud->push_back(fullCloud->points[j + i*Horizon_SCAN]);
                     // size of extracted cloud
                     ++count;
                 }
             }
-            cloudInfo.endRingIndex[i] = count -1 - 5;
+            cloudInfo.endRingIndex[i] = count -1 - 5;//提取特征时不考虑后5个
         }
     }
     
