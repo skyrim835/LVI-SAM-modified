@@ -100,7 +100,7 @@ file(GLOB visual_loop_files
     "src/visual_odometry/visual_loop/ThirdParty/DVision/*.cpp"
     "src/visual_odometry/visual_feature/camera_models/*.cc"
 )
-add_library(ahrs SHARED src/lidar_odometry/MahonyAHRS.cpp)
+add_library(ahrs SHARED src/lidar_odometry/mahonyMine.cpp)
 # Visual Feature Tracker
 add_executable(${PROJECT_NAME}_visual_feature ${visual_feature_files})
 target_link_libraries(${PROJECT_NAME}_visual_feature ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
