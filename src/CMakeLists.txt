@@ -82,23 +82,23 @@ link_directories(
 ### visual odometry
 ######################
 file(GLOB visual_feature_files
-    "src0/visual_odometry/visual_feature/*.cpp"
-    "src0/visual_odometry/visual_feature/camera_models/*.cc"
+    "src/visual_odometry/visual_feature/*.cpp"
+    "src/visual_odometry/visual_feature/camera_models/*.cc"
 )
 file(GLOB visual_odometry_files
-    "src0/visual_odometry/visual_estimator/*.cpp"
-    "src0/visual_odometry/visual_estimator/factor/*.cpp"
-    "src0/visual_odometry/visual_estimator/initial/*.cpp"
-    "src0/visual_odometry/visual_estimator/utility/*.cpp"
+    "src/visual_odometry/visual_estimator/*.cpp"
+    "src/visual_odometry/visual_estimator/factor/*.cpp"
+    "src/visual_odometry/visual_estimator/initial/*.cpp"
+    "src/visual_odometry/visual_estimator/utility/*.cpp"
 )
 file(GLOB visual_loop_files
-    "src0/visual_odometry/visual_loop/*.cpp"
-    "src0/visual_odometry/visual_loop/utility/*.cpp"
-    "src0/visual_odometry/visual_loop/ThirdParty/*.cpp"
-    "src0/visual_odometry/visual_loop/ThirdParty/DBoW/*.cpp"
-    "src0/visual_odometry/visual_loop/ThirdParty/DUtils/*.cpp"
-    "src0/visual_odometry/visual_loop/ThirdParty/DVision/*.cpp"
-    "src0/visual_odometry/visual_feature/camera_models/*.cc"
+    "src/visual_odometry/visual_loop/*.cpp"
+    "src/visual_odometry/visual_loop/utility/*.cpp"
+    "src/visual_odometry/visual_loop/ThirdParty/*.cpp"
+    "src/visual_odometry/visual_loop/ThirdParty/DBoW/*.cpp"
+    "src/visual_odometry/visual_loop/ThirdParty/DUtils/*.cpp"
+    "src/visual_odometry/visual_loop/ThirdParty/DVision/*.cpp"
+    "src/visual_odometry/visual_feature/camera_models/*.cc"
 )
 add_library(ahrs SHARED src0/lidar_odometry/MahonyAHRS.cpp)
 # Visual Feature Tracker
