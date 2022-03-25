@@ -100,7 +100,7 @@ file(GLOB visual_loop_files
     "src/visual_odometry/visual_loop/ThirdParty/DVision/*.cpp"
     "src/visual_odometry/visual_feature/camera_models/*.cc"
 )
-add_library(ahrs SHARED src0/lidar_odometry/MahonyAHRS.cpp)
+add_library(ahrs SHARED src/lidar_odometry/MahonyAHRS.cpp)
 # Visual Feature Tracker
 add_executable(${PROJECT_NAME}_visual_feature ${visual_feature_files})
 target_link_libraries(${PROJECT_NAME}_visual_feature ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
@@ -116,18 +116,18 @@ target_link_libraries(${PROJECT_NAME}_visual_loop ${catkin_LIBRARIES} ${PCL_LIBR
 ######################
 
 # IMU Preintegration
-add_executable(${PROJECT_NAME}_imuPreintegration src0/lidar_odometry/imuPreintegration.cpp)
+add_executable(${PROJECT_NAME}_imuPreintegration src/lidar_odometry/imuPreintegration.cpp)
 target_link_libraries(${PROJECT_NAME}_imuPreintegration ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam ahrs)
 # Range Image Projection
-add_executable(${PROJECT_NAME}_imageProjection src0/lidar_odometry/imageProjection.cpp)
+add_executable(${PROJECT_NAME}_imageProjection src/lidar_odometry/imageProjection.cpp)
 add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ahrs)
 # Feature Association
-add_executable(${PROJECT_NAME}_featureExtraction src0/lidar_odometry/featureExtraction.cpp)
+add_executable(${PROJECT_NAME}_featureExtraction src/lidar_odometry/featureExtraction.cpp)
 add_dependencies(${PROJECT_NAME}_featureExtraction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_featureExtraction ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ahrs)
 # Mapping Optimization
-add_executable(${PROJECT_NAME}_mapOptmization src0/lidar_odometry/mapOptmization.cpp)
+add_executable(${PROJECT_NAME}_mapOptmization src/lidar_odometry/mapOptmization.cpp)
 add_dependencies(${PROJECT_NAME}_mapOptmization ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_compile_options(${PROJECT_NAME}_mapOptmization PRIVATE ${OpenMP_CXX_FLAGS})
 target_link_libraries(${PROJECT_NAME}_mapOptmization PRIVATE ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${OpenMP_CXX_FLAGS} gtsam ahrs)
