@@ -144,11 +144,11 @@ public:
         tf::Transform t_lidar_cam = tf::Transform(tf::createQuaternionFromRPY(ypr.z(), ypr.y(), ypr.x()), tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
         tf::Transform t_odom_cam = t_odom_lidar * t_lidar_cam;
         // 得到视觉里程计初始值
-        odomCur.pose.pose.position.x = t_odom_imu.getOrigin().x();
-        odomCur.pose.pose.position.y = t_odom_imu.getOrigin().y();
-        odomCur.pose.pose.position.z = t_odom_imu.getOrigin().z();
+        odomCur.pose.pose.position.x = t_odom_cam.getOrigin().x();
+        odomCur.pose.pose.position.y = t_odom_cam.getOrigin().y();
+        odomCur.pose.pose.position.z = t_odom_cam.getOrigin().z();
         
-        tf::Matrix3x3 m(t_odom_imu.getRotation());
+        tf::Matrix3x3 m(t_odom_cam.getRotation());
         double roll, pitch, yaw;
         m.getRPY(roll, pitch, yaw);
 
