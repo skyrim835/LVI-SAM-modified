@@ -154,9 +154,9 @@ public:
 
         // Rotate orientation to VINS world
 
-        tf::Quaternion q_world_imu;
-        q_world_imu.setRPY(roll,pitch,yaw);
-        tf::quaternionTFToMsg(q_world_imu, odomCur.pose.pose.orientation);//只计算了朝向
+        tf::Quaternion q_world_cam;
+        q_world_cam.setRPY(roll,pitch,yaw);
+        tf::quaternionTFToMsg(q_world_cam, odomCur.pose.pose.orientation);//只计算了朝向
 
         // convert odometry position from lidar ROS frame to VINS camera frame
         //将位置求解
