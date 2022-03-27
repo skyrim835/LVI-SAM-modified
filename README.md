@@ -33,10 +33,6 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2016-02-21.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2016-08-34.png)
 
-# Tips
-- The original coordinates of LVI-SAM:
-  ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/LVI-SAM-original-coordinates.png)
-
 ## Acknowledgement
 
   - The original version is from [LVI-SAM](https://github.com/TixiaoShan/LVI-SAM).

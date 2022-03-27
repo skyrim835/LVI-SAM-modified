@@ -32,6 +32,12 @@ lvi_sam:
   extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1] #绕IMU的y轴旋转180°得到该旋转矩阵
   extrinsicRPY: [0, 1, 0, -1, 0, 0, 0, 0, 1]
 
+  # Extrinsics (lidar -> cam)
+  extrinsicCamTrans: [ -0.0199398,-0.0336424,-0.00642238 ]
+  extrinsicCamRot: [ 0,    1,    0,
+                       0,    0,    1,
+                       1,    0,    0 ]
+
   # LOAM feature threshold
   edgeThreshold: 1.0
   surfThreshold: 0.1

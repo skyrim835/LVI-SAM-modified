@@ -90,7 +90,7 @@ public:
     }
     
     // convert odometry from ROS Lidar frame to VINS camera frame
-    vector<float> getOdometry(deque<nav_msgs::Odometry>& odomQueue, double img_time,Eigen::Matrix3d lidar2imuRot,Eigen::Vector3d lidar2imuTrans)
+    vector<float> getOdometry(deque<nav_msgs::Odometry>& odomQueue, double img_time,Eigen::Matrix3d lidar2camRot,Eigen::Vector3d lidar2camTrans)
     {
         //此处的odomQueue是imu在lidar上的投影（加速度 旋转）
         vector<float> odometry_channel;
@@ -135,15 +135,15 @@ public:
         tf::quaternionMsgToTF(odomCur.pose.pose.orientation, q_odom_lidar);
          /**
          * @brief 修改的地方
-         * lidar2imu
+         * lidar2cam
          */
         tf::Transform t_odom_lidar = tf::Transform(q_odom_lidar, tf::Vector3(odomCur.pose.pose.position.x, odomCur.pose.pose.position.y, odomCur.pose.pose.position.z));
-        Eigen::Matrix3d extRot = lidar2imuRot;
-        Eigen::Vector3d extTrans(lidar2imuTrans);
+        Eigen::Matrix3d extRot = lidar2camRot;
+        Eigen::Vector3d extTrans(lidar2camTrans);
         Eigen::Vector3d ypr = extRot.eulerAngles(2, 1, 0);
-        tf::Transform t_lidar_imu = tf::Transform(tf::createQuaternionFromRPY(ypr.z(), ypr.y(), ypr.x()), tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
-        tf::Transform t_odom_imu = t_odom_lidar * t_lidar_imu;
-        // //得到imu里程计
+        tf::Transform t_lidar_cam = tf::Transform(tf::createQuaternionFromRPY(ypr.z(), ypr.y(), ypr.x()), tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
+        tf::Transform t_odom_cam = t_odom_lidar * t_lidar_cam;
+        // 得到视觉里程计初始值
         odomCur.pose.pose.position.x = t_odom_imu.getOrigin().x();
         odomCur.pose.pose.position.y = t_odom_imu.getOrigin().y();
         odomCur.pose.pose.position.z = t_odom_imu.getOrigin().z();
