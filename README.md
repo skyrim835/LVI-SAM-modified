@@ -11,6 +11,7 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 - Add "Extrinsics (lidar -> cam)"in params_lidar.yaml.
 - Using [MahonyAHRS](https://github.com/PaulStoffregen/MahonyAHRS) to caculate quaternion.So you don't need to prepare a 9-axis IMU.
 - Add lidar ring calculation method,whether your lidar provides "ring" information or not,it works.
+- Make changes to the code for sensor alignment.
 
 ---
 
@@ -22,6 +23,8 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
   /usr/include/**
 - Please make sure you have the same version of dependencies as [LVI-SAM](https://github.com/TixiaoShan/LVI-SAM).If you have problems installing or importing multiple version of dependencies,you can refer to this [blog](https://blog.csdn.net/DumpDoctorWang/article/details/84587331).
 - You need to download and compile [yaml-cpp](https://github.com/jbeder/yaml-cpp).
+- You can use [kalibr](https://github.com/ethz-asl/kalibr) to get cam_to_imu,and [calibration_camera_lidar](https://github.com/XidianLemon/calibration_camera_lidar) to  get cam_to_lidar,lidar_to_imu = cam_to_lidar.transpose * cam_to_imu
+
 
 ---
 
