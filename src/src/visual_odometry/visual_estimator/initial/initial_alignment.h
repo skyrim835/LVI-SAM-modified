@@ -90,7 +90,7 @@ public:
     }
     
     // convert odometry from ROS Lidar frame to VINS camera frame
-    vector<float> getOdometry(deque<nav_msgs::Odometry>& odomQueue, double img_time,Eigen::Matrix3d lidar2camRot,Eigen::Vector3d lidar2camTrans)
+    vector<float> getOdometry(deque<nav_msgs::Odometry>& odomQueue, double img_time,Eigen::Matrix3d lidar2imuRot,Eigen::Vector3d lidar2imuTrans)
     {
         //此处的odomQueue是imu在lidar上的投影（加速度 旋转）
         vector<float> odometry_channel;
@@ -135,28 +135,28 @@ public:
         tf::quaternionMsgToTF(odomCur.pose.pose.orientation, q_odom_lidar);
          /**
          * @brief 修改的地方
-         * lidar2cam
+         * lidar2imu
          */
         tf::Transform t_odom_lidar = tf::Transform(q_odom_lidar, tf::Vector3(odomCur.pose.pose.position.x, odomCur.pose.pose.position.y, odomCur.pose.pose.position.z));
-        Eigen::Matrix3d extRot = lidar2camRot;
-        Eigen::Vector3d extTrans(lidar2camTrans);
+        Eigen::Matrix3d extRot = lidar2imuRot;
+        Eigen::Vector3d extTrans(lidar2imuTrans);
         Eigen::Vector3d ypr = extRot.eulerAngles(2, 1, 0);
-        tf::Transform t_lidar_cam = tf::Transform(tf::createQuaternionFromRPY(ypr.z(), ypr.y(), ypr.x()), tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
-        tf::Transform t_odom_cam = t_odom_lidar * t_lidar_cam;
+        tf::Transform t_lidar_imu= tf::Transform(tf::createQuaternionFromRPY(ypr.z(), ypr.y(), ypr.x()), tf::Vector3(extTrans.x(), extTrans.y(), extTrans.z()));
+        tf::Transform t_odom_imu = t_odom_lidar * t_lidar_imu;
         // 得到视觉里程计初始值
-        odomCur.pose.pose.position.x = t_odom_cam.getOrigin().x();
-        odomCur.pose.pose.position.y = t_odom_cam.getOrigin().y();
-        odomCur.pose.pose.position.z = t_odom_cam.getOrigin().z();
+        odomCur.pose.pose.position.x = t_odom_imu.getOrigin().x();
+        odomCur.pose.pose.position.y = t_odom_imu.getOrigin().y();
+        odomCur.pose.pose.position.z = t_odom_imu.getOrigin().z();
         
-        tf::Matrix3x3 m(t_odom_cam.getRotation());
+        tf::Matrix3x3 m(t_odom_imu.getRotation());
         double roll, pitch, yaw;
         m.getRPY(roll, pitch, yaw);
 
         // Rotate orientation to VINS world
 
-        tf::Quaternion q_world_cam;
-        q_world_cam.setRPY(roll,pitch,yaw);
-        tf::quaternionTFToMsg(q_world_cam, odomCur.pose.pose.orientation);//只计算了朝向
+        tf::Quaternion q_world_imu;
+        q_world_imu.setRPY(roll,pitch,yaw);
+        tf::quaternionTFToMsg(q_world_imu, odomCur.pose.pose.orientation);//只计算了朝向
 
         // convert odometry position from lidar ROS frame to VINS camera frame
         //将位置求解

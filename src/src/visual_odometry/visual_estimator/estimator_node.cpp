@@ -42,8 +42,8 @@ bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
 
-Eigen::Matrix3d lidar2camRot;
-Eigen::Vector3d lidar2camTrans;
+Eigen::Matrix3d lidar2imuRot;
+Eigen::Vector3d lidar2imuTrans;
 
 /**
  * @brief 修改的地方
@@ -68,11 +68,11 @@ void getParam(ros::NodeHandle &n, const std::string &name)
                 if (i % 3 == 0 && i != 0)
                     j++;
                 k = i % 3;
-                lidar2camRot(j, k) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
+                lidar2imuRot(j, k) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
             }
             else
             {
-                lidar2camTrans(i) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
+                lidar2imuTrans(i) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
             }
         }
     }
@@ -340,15 +340,15 @@ void process()
             }
             /**
              * @brief 修改的地方
-             * 导入lidar2cam的外参
+             * 导入lidar2imu的外参
              */
-            Eigen::Matrix3d lidar2camRot_ = lidar2camRot;
-            Eigen::Vector3d lidar2camTrans_ = lidar2camTrans;
+            Eigen::Matrix3d lidar2imuRot_ = lidar2imuRot;
+            Eigen::Vector3d lidar2imuTrans_ = lidar2imuTrans;
             // Get initialization info from lidar odometry
             vector<float> initialization_info;
             m_odom.lock();
             //cam的初始位姿
-            initialization_info = odomRegister->getOdometry(odomQueue, img_msg->header.stamp.toSec() + estimator.td, lidar2camRot_, lidar2camTrans_);
+            initialization_info = odomRegister->getOdometry(odomQueue, img_msg->header.stamp.toSec() + estimator.td, lidar2imuRot_, lidar2imuTrans_);
             m_odom.unlock();
             // 3.3.处理图像数据(初始化, 非线性优化)
             //   cout<<"vins_ESTIMATOR process STARTED1"<<endl;

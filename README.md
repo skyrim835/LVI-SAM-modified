@@ -8,7 +8,6 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 
 - Add function to get extrinsic parameters.The original code assumes there are no translation between the sensors and their parameters are written in the code. But now both our data sets and LVI-SAM official data sets are working well.
 - Add "lidar to imu extrinsics" in params_camera.yaml.
-- Add "Extrinsics (lidar -> cam)"in params_lidar.yaml.
 - Using [MahonyAHRS](https://github.com/PaulStoffregen/MahonyAHRS) to caculate quaternion.So you don't need to prepare a 9-axis IMU.
 - Add lidar ring calculation method,whether your lidar provides "ring" information or not,it works.
 - Make changes to the code for sensor alignment.
