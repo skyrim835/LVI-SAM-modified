@@ -488,7 +488,13 @@ bool Estimator::visualInitialAlign()
     // 5.尺度缩放
     // 5.1.Ps
     for (int i = frame_count; i >= 0; i--)
-        Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);
+    {
+        Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);//cam->world
+        //修改的地方
+        Eigen::Vector3d cam_t_imu;
+        cam_t_imu = -RIC[0].transpose()* TIC[0];
+        Ps[i] = Rs[i]*cam_t_imu+Ps[i];//imu->world
+    }
     // 5.2.Vs
     int kv = -1;
     map<double, ImageFrame>::iterator frame_i;
