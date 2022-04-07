@@ -9,7 +9,7 @@ lvi_sam:
 
   # Heading
   useImuHeadingInitialization: true          # if using GPS data, set to "true"
-
+  
   # Export settings
   savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
   savePCDDirectory: "/Downloads/LOAM/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
@@ -26,7 +26,7 @@ lvi_sam:
   imuAccBiasN: 6.4356659353532566e-05
   imuGyrBiasN: 3.5640318696367613e-05
   imuGravity: 9.80511
-
+  
   # Extrinsics (lidar -> IMU) //suppose to be IMU->lidar
   extrinsicTrans: [0.0, 0.0, 0.0]
   extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
