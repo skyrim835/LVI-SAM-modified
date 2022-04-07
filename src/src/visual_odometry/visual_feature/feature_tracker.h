@@ -6,7 +6,7 @@
 #include <execinfo.h>
 #include <csignal>
 
-//pcl放在opencv前面
+// pcl放在opencv前面
 
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
@@ -16,6 +16,7 @@
 #include "camera_models/PinholeCamera.h"
 #include "parameters.h"
 #include "tic_toc.h"
+#include <ros/ros.h>
 
 using namespace std;
 using namespace camodocal;
@@ -54,7 +55,7 @@ public:
     vector<cv::Point2f> prev_pts, cur_pts, forw_pts;
     vector<cv::Point2f> prev_un_pts, cur_un_pts; //去畸变后的归一化坐标
     vector<cv::Point2f> pts_velocity;
-    vector<int> ids;                      //forw_img特征点的index
+    vector<int> ids;                      // forw_img特征点的index
     vector<int> track_cnt;                //特征点被成功跟踪上的次数（新提取的特征点，跟踪次数为1）
     map<int, cv::Point2f> cur_un_pts_map; //去畸变后的归一化坐标 <index,坐标>
     map<int, cv::Point2f> prev_un_pts_map;
@@ -103,14 +104,13 @@ public:
         depth_of_point.values.resize(features_2d.size(), -1);
 
         // 0.2  check if depthCloud available
-        if (depthCloud->size() == 0)
+        if (depthCloud->size() == 0) // point to world
             return depth_of_point;
-
         // 0.3 look up transform at current image time
         try
         {
             listener.waitForTransform("vins_world", "vins_body_ros", stamp_cur, ros::Duration(0.01));
-            listener.lookupTransform("vins_world", "vins_body_ros", stamp_cur, transform);
+            listener.lookupTransform("vins_world", "vins_body_ros", stamp_cur, transform); // get wolrd^T_lidar
         }
         catch (tf::TransformException ex)
         {
@@ -124,18 +124,40 @@ public:
         zCur = transform.getOrigin().z();
         tf::Matrix3x3 m(transform.getRotation());
         m.getRPY(rollCur, pitchCur, yawCur);
-        Eigen::Affine3f transNow = pcl::getTransformation(xCur, yCur, zCur, rollCur, pitchCur, yawCur);
+        Eigen::Affine3f transNow = pcl::getTransformation(xCur, yCur, zCur, rollCur, pitchCur, yawCur); // get wolrd^T_lidar
 
-        /**
-         * @brief 修改的地方
-         * depth_cloud已经变成相机的位姿下所拍摄到的点云 但是获取深度时只需要关联lidar和camera 而下面的camera是相机坐标系
-         */
-        Eigen::Affine3f transLidar2Cam = pcl::getTransformation(L_C_TX, L_C_TY, L_C_TZ, 0, 0, 0);
-        transNow = transNow * transLidar2Cam; // t_world_lidar * t_lidar_cam = t_world_cam
-        // // 0.4 transform cloud from global frame to camera frame
+        // 0.4 transform cloud from global frame to camera frame
+
         pcl::PointCloud<PointType>::Ptr depth_cloud_local(new pcl::PointCloud<PointType>());
+        // get point to camera center  (but orientation is lidar original axis )
+        // world^T_lidar.inverse() * world^T_point ===> lidar^T_world * world^T_point ===>lidar(original) ^ T_point
         pcl::transformPointCloud(*depthCloud, *depth_cloud_local, transNow.inverse());
+        /**
+         * @brief modified
+         * normal_R_original represents normal^R_original
+         * normal axis x--->front y--->left z---->up
+         */ 
+        //just orientation, offset has been added
+        Eigen::Affine3f cam_R_lidar_original = pcl::getTransformation(0, 0, 0, C_RX_L, C_RY_L, C_RZ_L);
+        // to rotate lidar to a normal axis direction (x-->front y--->left  z--->up)
+        // and assume camera is in a normal direction (z--->front x--->right y--->down)
+        // make the orientation in a normal way
+        Eigen::Matrix4f lidar_normal_R_cam;
+        lidar_normal_R_cam << 0, 0, 1, 0,
+            -1, 0, 0, 0,
+            0, -1, 0, 0,
+            0, 0, 0, 1;
+        // point(lidar_original) ->cam  ===> point (lidar_normal)->cam change the representation of the points in lidar (only rotation)
+        Eigen::Matrix4f lidar_normal_R_original;
+        lidar_normal_R_original = lidar_normal_R_cam * cam_R_lidar_original.matrix();
+        // Matrix->Affine
+        Eigen::Affine3f normal_R_original;
+        normal_R_original = lidar_normal_R_original;
+        // normal direction
+        // lidar(normal)^R_lidar(original) * lidar(original) ^ T_point===> lidar(normal) ^ T_point (only rotation, translation is still point->)
+        pcl::transformPointCloud(*depth_cloud_local, *depth_cloud_local, normal_R_original);
 
+        // pcl::transformPointCloud(*depth_cloud_local, *depth_cloud_local, cam_t_lidar_normal_aff);//cam(x--->front y--->right z--->up) ^ T_point
         // 0.5 project undistorted normalized (z) 2d features onto a unit sphere
         pcl::PointCloud<PointType>::Ptr features_3d_sphere(new pcl::PointCloud<PointType>());
         for (int i = 0; i < (int)features_2d.size(); ++i)
@@ -143,21 +165,8 @@ public:
             // normalize 2d feature to a unit sphere
             Eigen::Vector3f feature_cur(features_2d[i].x, features_2d[i].y, features_2d[i].z); // z always equal to 1
             feature_cur.normalize();
-            // convert to ROS standard 变到与lidar相同的x轴朝前的坐标系
+            // convert to ROS standard 变到与lidar（x 朝前 右手系）相同的x轴朝前的坐标系
             PointType p;
-            // //新增
-            // Eigen::Matrix3f cam2lidar, lidar2cam;
-            // Eigen::Vector3f eulerAngle(L_C_RX, L_C_RY, L_C_RZ);
-            // Eigen::AngleAxisf rollAngle(AngleAxisf(eulerAngle(2), Eigen::Vector3f::UnitX()));
-            // Eigen::AngleAxisf pitchAngle(AngleAxisf(eulerAngle(1), Eigen::Vector3f::UnitY()));
-            // Eigen::AngleAxisf yawAngle(AngleAxisf(eulerAngle(0), Eigen::Vector3f::UnitZ()));
-            // lidar2cam = yawAngle * pitchAngle * rollAngle;
-            // cam2lidar = lidar2cam.inverse();
-            // feature_cur = cam2lidar * feature_cur;
-            // p.x = feature_cur(0);
-            // p.y = feature_cur(1);
-            // p.z = feature_cur(2);
-            // //新增结束
             p.x = feature_cur(2);
             p.y = -feature_cur(0);
             p.z = -feature_cur(1);
@@ -173,6 +182,7 @@ public:
         {
             PointType p = depth_cloud_local->points[i];
             // filter points not in camera view
+            // x--->front y--->left z--->up
             if (p.x < 0 || abs(p.y / p.x) > 10 || abs(p.z / p.x) > 10)
                 continue;
             // find row id in range image
@@ -224,14 +234,12 @@ public:
         // 6. create a kd-tree using the spherical depth cloud
         pcl::KdTreeFLANN<PointType>::Ptr kdtree(new pcl::KdTreeFLANN<PointType>());
         kdtree->setInputCloud(depth_cloud_unit_sphere);
-        /**
-         * @brief 修改的地方
-         * 
-         */
+
         // 7. find the feature depth using kd-tree
         vector<int> pointSearchInd;
         vector<float> pointSearchSqDis;
         float dist_sq_threshold = pow(sin(bin_res / 180.0 * M_PI) * 5.0, 2);
+        // ROS_INFO("features_3d_sphere size: %d",(int)features_3d_sphere->size());
         for (int i = 0; i < (int)features_3d_sphere->size(); ++i)
         {
             kdtree->nearestKSearch(features_3d_sphere->points[i], 3, pointSearchInd, pointSearchSqDis);
@@ -273,6 +281,7 @@ public:
                 {
                     s = min_depth;
                 }
+
                 // convert feature into cartesian space if depth is available
                 features_3d_sphere->points[i].x *= s;
                 features_3d_sphere->points[i].y *= s;

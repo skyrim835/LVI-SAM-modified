@@ -85,12 +85,16 @@ extern int EQUALIZE;
 extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 
-extern double L_C_TX;
-extern double L_C_TY;
-extern double L_C_TZ;
-extern double L_C_RX;
-extern double L_C_RY;
-extern double L_C_RZ;
+/**
+ * @brief modified
+ *  C_RX_L represents C^RX_L
+ */
+extern double C_TX_L;
+extern double C_TY_L;
+extern double C_TZ_L;
+extern double C_RX_L;
+extern double C_RY_L;
+extern double C_RZ_L;
 
 
 void readParameters(ros::NodeHandle &n);

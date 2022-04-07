@@ -236,7 +236,7 @@ public:
         imu_out.angular_velocity.y = gyr.y();
         imu_out.angular_velocity.z = gyr.z();
         /**
-         * @brief 修改的地方
+         * @brief modified
          * 
          */
         // rotate roll pitch yaw

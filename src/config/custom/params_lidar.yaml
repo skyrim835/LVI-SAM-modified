@@ -1,4 +1,4 @@
-# project name 11.1之前的数据
+# project name
 PROJECT_NAME: "lvi_sam"
 
 lvi_sam:
@@ -9,7 +9,7 @@ lvi_sam:
 
   # Heading
   useImuHeadingInitialization: true          # if using GPS data, set to "true"
-  
+
   # Export settings
   savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
   savePCDDirectory: "/software/LVI-SAM-updated4.0/picresults/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
@@ -19,20 +19,20 @@ lvi_sam:
   Horizon_SCAN: 2000                         # lidar horizontal resolution (Velodyne:1800, Ouster:512,1024,2048)
   ang_y: 1.0                                  #ang/N_SCAN在纵向激光头分布的角度/线数
   timeField: "time"                           # point timestamp field, Velodyne - "time", Ouster - "t"
-  downsampleRate: 1                           # default: 1. Downsample your data if too many points. i.e., 16 = 64 / 4, 16 = 16 / 1 
+  downsampleRate: 1                           # default: 1. Downsample your data if too many points. i.e., 16 = 64 / 4, 16 = 16 / 1
 
   # IMU Settings
-  imuAccNoise: 2.8204438138836063e-02  
-  imuGyrNoise: 2.4927177105924072e-03 
-  imuAccBiasN: 4.0739558582909998e-04 
+  imuAccNoise: 2.8204438138836063e-02
+  imuGyrNoise: 2.4927177105924072e-03
+  imuAccBiasN: 4.0739558582909998e-04
   imuGyrBiasN: 1.7029730578800357e-05
   imuGravity: 9.81007
-  imuHz: 400 
-  
+  imuHz: 400
+
   # Extrinsics (IMU -> lidar)
-  extrinsicTrans: [0.0368705,-0.115981,-0.129079]
-  extrinsicRot: [-0.999929,-0.00784259,0.00894732,-0.0090834,0.0174902,-0.999806,0.00768457,-0.999816,-0.0175602]
-  extrinsicRPY: [-0.999929,-0.00784259,0.00894732,-0.0090834,0.0174902,-0.999806,0.00768457,-0.999816,-0.0175602]
+  extrinsicTrans: [0.0435774,-0.0940634, -0.105495]
+  extrinsicRot: [-0.999986,0.00438914,-0.00310146,0.0031433,0.00955755,-0.999949,-0.00435928,-0.999945,-0.00957121]
+  extrinsicRPY: [-0.999986,0.00438914,-0.00310146,0.0031433,0.00955755,-0.999949,-0.00435928,-0.999945,-0.00957121]
 
   # LOAM feature threshold
   edgeThreshold: 1.0

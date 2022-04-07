@@ -28,8 +28,8 @@ bool first_lidar_keypose = false;
 double timeLastProcessing = -1;
 bool use_vins = false;
 /*
-    * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
-    */
+ * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
+ */
 struct PointXYZIRPYT
 {
     PCL_ADD_POINT4D
@@ -164,7 +164,6 @@ public:
         subLaserCloudInfo = nh.subscribe<lvi_sam::cloud_info>(PROJECT_NAME + "/lidar/feature/cloud_info", 5, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         subGPS = nh.subscribe<nav_msgs::Odometry>(gpsTopic, 50, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
         subLoopInfo = nh.subscribe<std_msgs::Float64MultiArray>(PROJECT_NAME + "/vins/loop/match_frame", 5, &mapOptimization::loopHandler, this, ros::TransportHints().tcpNoDelay());
-        // subvinsOdom = nh.subscribe<nav_msgs::Odometry>(PROJECT_NAME + "/vins/odometry/odometry", 5, &mapOptimization::vinsHandler, this, ros::TransportHints().tcpNoDelay());
 
         pubHistoryKeyFrames = nh.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/lidar/mapping/loop_closure_history_cloud", 1);
         pubIcpKeyFrames = nh.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/lidar/mapping/loop_closure_corrected_cloud", 1);
@@ -265,9 +264,9 @@ public:
         }
     }
     /**
-     * @brief 修改的地方
-     * 
-     * @param vinsMsg 
+     * @brief modified
+     *
+     * @param vinsMsg
      */
     void vinsHandler(const nav_msgs::Odometry::ConstPtr &vinsMsg)
     {
@@ -829,10 +828,6 @@ public:
 
         static Eigen::Affine3f lastImuTransformation;
         // system initialization
-        // cout<<cloudKeyPoses3D->points.size()<<endl;
-        // cout<<"lio: "<<cloudInfo.odomX<<" "<<cloudInfo.odomY<<" "<<cloudInfo.odomZ<<endl;
-        //
-        //cloudPose3D为保存的关键帧的数量
         if (cloudKeyPoses3D->points.empty() || use_vins == true)
         {
 
@@ -846,7 +841,6 @@ public:
             lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); // save imu before return;
             return;
         }
-        //当lidar信息没了的时候odom也没有，所以必须从vins中直接读取
 
         // use VINS odometry estimation for pose guess
         static int odomResetId = 0;
@@ -867,15 +861,9 @@ public:
                 // ROS_INFO("Obtaining VINS incremental guess");
                 Eigen::Affine3f transBack = pcl::getTransformation(cloudInfo.odomX, cloudInfo.odomY, cloudInfo.odomZ,
                                                                    cloudInfo.odomRoll, cloudInfo.odomPitch, cloudInfo.odomYaw);
-                /**
-                 * @brief 修改的地方
-                 * 
-                 */
-                //ICP变换中将变换矩阵连续右乘 如果按照正常思路 transBack = transIncre*lastVinsTransformation则无法连续右乘 因此此处为transBack = lstVinsTranformation * transIncre
                 Eigen::Affine3f transIncre = lastVinsTransformation.inverse() * transBack;
 
-                Eigen::Affine3f transTobe = trans2Affine3f(transformTobeMapped); //获取上一时刻的位姿信息（相对于原点）
-                // Eigen::Affine3f transFinal = transIncre * transTobe;//当前时刻的位姿信息
+                Eigen::Affine3f transTobe = trans2Affine3f(transformTobeMapped);
                 Eigen::Affine3f transFinal = transTobe * transIncre;
                 pcl::getTranslationAndEulerAngles(transFinal, transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5],
                                                   transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
@@ -893,23 +881,16 @@ public:
             lastVinsTransAvailable = false;
             odomResetId = cloudInfo.odomResetId;
         }
-        /**
-         * @brief 修改的地方
-         * 
-         */
-        //如果初始时刻的话 此时无vins信息 用imu的 ？ 应该是需要更新imu的姿态信息
         // use imu incremental estimation for pose guess (only rotation)
         if (cloudInfo.imuAvailable == true)
         {
             // ROS_INFO("Using IMU initial guess");
             Eigen::Affine3f transBack = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit);
-            Eigen::Affine3f transIncre = lastImuTransformation.inverse() * transBack; //当前的*transeIncre = transBack是否有问题
+            Eigen::Affine3f transIncre = lastImuTransformation.inverse() * transBack;
             Eigen::Affine3f transTobe = trans2Affine3f(transformTobeMapped);
-            // Eigen::Affine3f transFinal =  transIncre * transTobe;
             Eigen::Affine3f transFinal = transTobe * transIncre;
             pcl::getTranslationAndEulerAngles(transFinal, transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5],
                                               transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
-            //lio部分的xyz只在点云icp过程中计算 不利用imu的信息
             lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); // save imu before return;
             return;
         }
@@ -983,7 +964,7 @@ public:
         downSizeFilterSurf.filter(*laserCloudSurfFromMapDS);
     }
 
-    void extractSurroundingKeyFrames() //step2
+    void extractSurroundingKeyFrames() // step2
     {
         if (cloudKeyPoses3D->points.empty() == true)
             return;
@@ -991,7 +972,7 @@ public:
         extractNearby();
     }
 
-    void downsampleCurrentScan() //step3
+    void downsampleCurrentScan() // step3
     {
         // Downsample cloud from current scan
         laserCloudCornerLastDS->clear();
@@ -1221,7 +1202,7 @@ public:
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
     }
-    //LM迭代算法
+    // LM迭代算法
     bool LMOptimization(int iterCount)
     {
         // This optimization is from the original loam_velodyne, need to cope with coordinate transformation
@@ -1567,7 +1548,7 @@ public:
         aLoopIsClosed = true;
     }
 
-    void saveKeyFramesAndFactor() //step5 保存关键帧 此处又对transformTobeMapped进行了一次更新
+    void saveKeyFramesAndFactor() // step5 保存关键帧 此处又对transformTobeMapped进行了一次更新
     {
         if (saveFrame() == false)
             return;
@@ -1588,7 +1569,7 @@ public:
         gtSAMgraph.resize(0);
         initialEstimate.clear();
 
-        //save key poses
+        // save key poses
         PointType thisPose3D;
         PointTypePose thisPose6D;
         Pose3 latestEstimate;
@@ -1642,7 +1623,7 @@ public:
         updatePath(thisPose6D);
     }
 
-    void correctPoses() //step6 更新所有关键帧的位姿
+    void correctPoses() // step6 更新所有关键帧的位姿
     {
         if (cloudKeyPoses3D->points.empty())
             return;

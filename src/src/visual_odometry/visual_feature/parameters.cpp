@@ -20,13 +20,16 @@ int COL;
 int FOCAL_LENGTH;
 int FISHEYE;
 bool PUB_THIS_FRAME;
-
-double L_C_TX;
-double L_C_TY;
-double L_C_TZ;
-double L_C_RX;
-double L_C_RY;
-double L_C_RZ;
+/**
+ * @brief modified
+ * C_RX_L represents C^RX_L
+ */
+double C_TX_L;
+double C_TY_L;
+double C_TZ_L;
+double C_RX_L;
+double C_RY_L;
+double C_RZ_L;
 
 int USE_LIDAR;
 int LIDAR_SKIP;
@@ -64,13 +67,16 @@ void readParameters(ros::NodeHandle &n)
     F_THRESHOLD = fsSettings["F_threshold"];
     SHOW_TRACK = fsSettings["show_track"];
     EQUALIZE = fsSettings["equalize"];
-
-    L_C_TX = fsSettings["lidar_to_cam_tx"];
-    L_C_TY = fsSettings["lidar_to_cam_ty"];
-    L_C_TZ = fsSettings["lidar_to_cam_tz"];
-    L_C_RX = fsSettings["lidar_to_cam_rx"];
-    L_C_RY = fsSettings["lidar_to_cam_ry"];
-    L_C_RZ = fsSettings["lidar_to_cam_rz"];
+    /**
+     * @brief modified
+     * 
+     */
+    C_TX_L = fsSettings["lidar_to_cam_tx"];
+    C_TY_L = fsSettings["lidar_to_cam_ty"];
+    C_TZ_L = fsSettings["lidar_to_cam_tz"];
+    C_RX_L = fsSettings["lidar_to_cam_rx"];
+    C_RY_L = fsSettings["lidar_to_cam_ry"];
+    C_RZ_L = fsSettings["lidar_to_cam_rz"];
 
     // fisheye mask
     FISHEYE = fsSettings["fisheye"];

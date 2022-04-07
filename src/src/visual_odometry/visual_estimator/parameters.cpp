@@ -27,25 +27,25 @@ double TD, TR;
 // double Fx,Fy,Cx,Cy;
 int USE_LIDAR;
 int ALIGN_CAMERA_LIDAR_COORDINATE;
-
-double L_I_TX;
-double L_I_TY;
-double L_I_TZ;
-double L_I_RX;
-double L_I_RY;
-double L_I_RZ;
+/**
+ * @brief modified
+ * L_RX_I represents L^RX_I
+ */
+double L_TX_I;
+double L_TY_I;
+double L_TZ_I;
+double L_RX_I;
+double L_RY_I;
+double L_RZ_I;
 
 int imu_Hz;
-/**
- * @brief 修改的地方
- * 
- */
-double L_C_TX;
-double L_C_TY;
-double L_C_TZ;
-double L_C_RX;
-double L_C_RY;
-double L_C_RZ;
+
+double C_TX_L;
+double C_TY_L;
+double C_TZ_L;
+double C_RX_L;
+double C_RY_L;
+double C_RZ_L;
 
 double imuGravity;
 double imuAccNoise;
@@ -81,24 +81,24 @@ void readParameters(ros::NodeHandle &n)
     MIN_PARALLAX = MIN_PARALLAX / FOCAL_LENGTH;
 
     /**
-     * @brief 修改的地方
+     * @brief modified
      * 
      */
-    L_I_TX = fsSettings["lidar_to_imu_tx"];
-    L_I_TY = fsSettings["lidar_to_imu_ty"];
-    L_I_TZ = fsSettings["lidar_to_imu_tz"];
-    L_I_RX = fsSettings["lidar_to_imu_rx"];
-    L_I_RY = fsSettings["lidar_to_imu_ry"];
-    L_I_RZ = fsSettings["lidar_to_imu_rz"];
+    L_TX_I = fsSettings["imu_to_lidar_tx"];
+    L_TY_I = fsSettings["imu_to_lidar_ty"];
+    L_TZ_I = fsSettings["imu_to_lidar_tz"];
+    L_RX_I = fsSettings["imu_to_lidar_rx"];
+    L_RY_I = fsSettings["imu_to_lidar_ry"];
+    L_RZ_I = fsSettings["imu_to_lidar_rz"];
 
     imu_Hz = fsSettings["imu_hz"];
 
-    L_C_TX = fsSettings["lidar_to_cam_tx"];
-    L_C_TY = fsSettings["lidar_to_cam_ty"];
-    L_C_TZ = fsSettings["lidar_to_cam_tz"];
-    L_C_RX = fsSettings["lidar_to_cam_rx"];
-    L_C_RY = fsSettings["lidar_to_cam_ry"];
-    L_C_RZ = fsSettings["lidar_to_cam_rz"];
+    C_TX_L = fsSettings["lidar_to_cam_tx"];
+    C_TY_L = fsSettings["lidar_to_cam_ty"];
+    C_TZ_L = fsSettings["lidar_to_cam_tz"];
+    C_RX_L = fsSettings["lidar_to_cam_rx"];
+    C_RY_L = fsSettings["lidar_to_cam_ry"];
+    C_RZ_L = fsSettings["lidar_to_cam_rz"];
 
     imuGravity = fsSettings["g_norm"];
     imuAccNoise = fsSettings["acc_n"];
@@ -115,12 +115,6 @@ void readParameters(ros::NodeHandle &n)
     G.z() = fsSettings["g_norm"];
     ROW = fsSettings["image_height"];
     COL = fsSettings["image_width"];
-
-    // cv::FileNode nf = fsSettings["projection_parameters"];
-    // Fx = static_cast<double>(nf["fx"]);
-    // Fy = static_cast<double>(nf["fy"]);
-    // Cx = static_cast<double>(nf["cx"]);
-    // Cy = static_cast<double>(nf["cy"]);
 
     ROS_INFO("Image dimention: ROW: %f COL: %f ", ROW, COL);
 

@@ -87,25 +87,25 @@ extern double ROW, COL;
 // extern double Fx,Fy,Cx,Cy;
 extern int USE_LIDAR;
 extern int ALIGN_CAMERA_LIDAR_COORDINATE;
-
-extern double L_I_TX;
-extern double L_I_TY;
-extern double L_I_TZ;
-extern double L_I_RX;
-extern double L_I_RY;
-extern double L_I_RZ;
+/**
+ * @brief modified
+ * L_RX_I represents L^RX_I
+ */
+extern double L_TX_I;
+extern double L_TY_I;
+extern double L_TZ_I;
+extern double L_RX_I;
+extern double L_RY_I;
+extern double L_RZ_I;
 
 extern int imu_Hz;
-/**
- * @brief 修改的地方
- * 
- */
-extern double L_C_TX;
-extern double L_C_TY;
-extern double L_C_TZ;
-extern double L_C_RX;
-extern double L_C_RY;
-extern double L_C_RZ;
+
+extern double C_TX_L;
+extern double C_TY_L;
+extern double C_TZ_L;
+extern double C_RX_L;
+extern double C_RY_L;
+extern double C_RZ_L;
 
 extern double imuGravity;
 extern double imuAccNoise;

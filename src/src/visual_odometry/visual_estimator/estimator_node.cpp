@@ -42,16 +42,17 @@ bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
 
-Eigen::Matrix3d lidar2imuRot;
-Eigen::Vector3d lidar2imuTrans;
+Eigen::Matrix3d lidar_Rot_imu;
+Eigen::Vector3d lidar_Trans_imu;
 
 /**
- * @brief 修改的地方
+ * @brief modified
  * 
  * @param n 
  * @param name 
  */
 //获取配置文件中的参数
+//get parameters in your yaml file
 void getParam(ros::NodeHandle &n, const std::string &name)
 {
 
@@ -68,11 +69,11 @@ void getParam(ros::NodeHandle &n, const std::string &name)
                 if (i % 3 == 0 && i != 0)
                     j++;
                 k = i % 3;
-                lidar2imuRot(j, k) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
+                lidar_Rot_imu(j, k) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
             }
             else
             {
-                lidar2imuTrans(i) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
+                lidar_Trans_imu(i) = tmp_value.getType() == XmlRpc::XmlRpcValue::TypeDouble ? double(tmp_value) : double(int(tmp_value));
             }
         }
     }
@@ -339,23 +340,18 @@ void process()
                 image[feature_id].emplace_back(camera_id, xyz_uv_velocity_depth);
             }
             /**
-             * @brief 修改的地方
-             * 导入lidar2imu的外参
+             * @brief modified
+             * import extrinsic from imu to lidar
              */
-            Eigen::Matrix3d lidar2imuRot_ = lidar2imuRot;
-            Eigen::Vector3d lidar2imuTrans_ = lidar2imuTrans;
             // Get initialization info from lidar odometry
             vector<float> initialization_info;
             m_odom.lock();
             //cam的初始位姿
-            initialization_info = odomRegister->getOdometry(odomQueue, img_msg->header.stamp.toSec() + estimator.td, lidar2imuRot_, lidar2imuTrans_);
+            initialization_info = odomRegister->getOdometry(odomQueue, img_msg->header.stamp.toSec() + estimator.td, lidar_Rot_imu, lidar_Trans_imu);
             m_odom.unlock();
             // 3.3.处理图像数据(初始化, 非线性优化)
-            //   cout<<"vins_ESTIMATOR process STARTED1"<<endl;
-            // ROS_INFO("vins_ESTIMATOR process STARTED2");
+            // ROS_INFO("run lidar initialization %f",initialization_info[0]);
             estimator.processImage(image, initialization_info, img_msg->header);
-            // double whole_t = t_s.toc();
-            // printStatistics(estimator, whole_t);
             // 3. Visualization
             std_msgs::Header header = img_msg->header;
             pubOdometry(estimator, header);
@@ -383,7 +379,6 @@ int main(int argc, char **argv)
 
     ROS_INFO("\033[1;32m----> Visual Odometry Estimator Started.\033[0m");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Warn);
-    ROS_INFO("RUN HERE");
     readParameters(n);
 
     estimator.setParameter();

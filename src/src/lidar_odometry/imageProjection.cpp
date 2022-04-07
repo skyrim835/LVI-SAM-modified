@@ -259,7 +259,7 @@ public:
             ros::shutdown();
         }
         /**
-         * @brief 修改的地方
+         * @brief modified
          * 
          */
         int ringFlag = 1;
@@ -384,12 +384,6 @@ public:
     void odomDeskewInfo()
     {
         cloudInfo.odomAvailable = false;
-        /**
-         * @brief 修改的地方
-         * 直接用中值积分算得的imu里程计效果不好
-         */
-        // if(!imuQueue.empty())
-        //     return;
 
         while (!odomQueue.empty())
         {
@@ -399,10 +393,6 @@ public:
                 break;
         }
 
-        /**
-         * @brief 修改的地方
-         * 当lio不可用时再用vins
-         */
         if (odomQueue.empty())
                 return;
 
@@ -566,7 +556,7 @@ public:
             thisPoint.intensity = laserCloudIn->points[i].intensity;
             int rowIdn;
             /**
-             * @brief 修改的地方
+             * @brief modified
              * 
              */
             if(has_ring)

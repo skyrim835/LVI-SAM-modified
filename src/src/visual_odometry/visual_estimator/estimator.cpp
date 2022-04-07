@@ -239,6 +239,8 @@ bool Estimator::initialStructure()
         // check if lidar info in the window is valid
         for (int i = 0; i <= WINDOW_SIZE; i++)
         {
+            // ROS_INFO("all_image_frame[Headers[i].stamp.toSec()].reset_id %d",all_image_frame[Headers[i].stamp.toSec()].reset_id);
+            // ROS_INFO("all_image_frame[Headers[0].stamp.toSec()].reset_id %d",all_image_frame[Headers[0].stamp.toSec()].reset_id);
             if (all_image_frame[Headers[i].stamp.toSec()].reset_id < 0 || 
                 all_image_frame[Headers[i].stamp.toSec()].reset_id != all_image_frame[Headers[0].stamp.toSec()].reset_id)
             {
@@ -251,6 +253,7 @@ bool Estimator::initialStructure()
 
         if (lidar_info_available == true)
         {
+            ROS_INFO("run here");
             // Update state
             for (int i = 0; i <= WINDOW_SIZE; i++)
             {
@@ -489,12 +492,13 @@ bool Estimator::visualInitialAlign()
     // 5.1.Ps
     for (int i = frame_count; i >= 0; i--)
     {
-        Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);//cam->world
-        //修改的地方
-        Eigen::Vector3d cam_t_imu;
-        cam_t_imu = -RIC[0].transpose()* TIC[0];
-        Ps[i] = Rs[i]*cam_t_imu+Ps[i];//imu->world
+         Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);
+         //modified
+         Eigen::Vector3d cam_t_imu;
+         cam_t_imu = -RIC[0].transpose()* TIC[0];
+         Ps[i] = Rs[i]*cam_t_imu+Ps[i];
     }
+       
     // 5.2.Vs
     int kv = -1;
     map<double, ImageFrame>::iterator frame_i;
