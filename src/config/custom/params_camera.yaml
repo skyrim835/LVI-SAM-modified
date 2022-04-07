@@ -13,13 +13,14 @@ use_lidar: 1                     # whether use depth info from lidar or not
 lidar_skip: 3                    # skip this amount of scans
 align_camera_lidar_estimation: 1 # align camera and lidar estimation for visualization
 
-#from cam to lidar extrinsic
+# lidar to camera extrinsic
 lidar_to_cam_tx: 0.0398946
 lidar_to_cam_ty: -0.111613
 lidar_to_cam_tz: -0.110938
 lidar_to_cam_rx: -1.58432
 lidar_to_cam_ry: -0.00517069
-lidar_to_cam_rz: 3.14111 
+lidar_to_cam_rz: 3.14111
+
 # imu to lidar extrinsic 
 imu_to_lidar_tx: 0.0368063
 imu_to_lidar_ty: -0.126738

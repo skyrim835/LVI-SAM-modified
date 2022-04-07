@@ -12,7 +12,7 @@ lvi_sam:
   
   # Export settings
   savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
-  savePCDDirectory: "/software/LVI-SAM-updated4.0/picresults/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
+  savePCDDirectory: "/software/LVI-SAM/picresults/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
 
   # Sensor Settings
   N_SCAN: 32                                  # number of lidar channel (i.e., 16, 32, 64, 128)

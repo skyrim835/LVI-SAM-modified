@@ -20,7 +20,8 @@ lidar_to_cam_tz: -0.00642238
 lidar_to_cam_rx: -1.5708
 lidar_to_cam_ry: -1.5708
 lidar_to_cam_rz: 0.0
-# lidar to imu extrinsic
+
+# imu to lidar extrinsic
 imu_to_lidar_tx: 0.0
 imu_to_lidar_ty: 0.0
 imu_to_lidar_tz: 0.0

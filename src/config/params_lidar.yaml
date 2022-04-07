@@ -31,6 +31,7 @@ lvi_sam:
   extrinsicTrans: [0.0, 0.0, 0.0]
   extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
   extrinsicRPY: [0, 1, 0, -1, 0, 0, 0, 0, 1]
+
   # LOAM feature threshold
   edgeThreshold: 1.0
   surfThreshold: 0.1
