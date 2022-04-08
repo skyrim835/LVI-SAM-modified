@@ -30,48 +30,13 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 
 ---
 
-## Tips
-- Here is an example to calculate extrinsic:(My device)
-- From "calibration_camera_lidar" I  get camera->lidar extrinsic
-- From "kalibr" I get camera->imu extrinsic
-- Eigen::Matrix3d  Rot_cam_to_lidar;
-- Rot_cam_to_lidar<<
-  -9.9998651710637931e-01, 4.7941080890968359e-04,5.1706644378986897e-03,
-  -5.1637058294141756e-03, 1.3529208794012426e-02,-9.9989514282824454e-01,
-  -5.4931553803225881e-04, -9.9990836113850179e-01,-1.3526550844741081e-02;
-- Eigen::Vector3d t_cam_to_lidar(4.0521203694483053e-02,-1.0921058057045349e-01,-1.1308134312590766e-01);
-- Eigen::Matrix3d Rot_cam_to_imu; 
-- Rot_cam_to_imu<<
-  0.99995824,0.003922,-0.00825459,
-  -0.00388915,0.99998447,0.00399195,
-  0.00827012,-0.00395968,0.99995796;
-- Eigen::Vector3d t_cam_to_imu(0.00304159, 0.00742751,0.01522853); 
-- Eigen::Matrix3d Rot_lidar_to_cam= Rot_cam_to_lidar.transpose();
-- Eigen::Vector3d t_lidar_to_cam = - Rot_cam_to_lidar.transpose() * t_cam_to_lidar;
-- Eigen::MatrixX3d Rot_imu_to_cam = Rot_cam_to_imu.transpose();
-- Eigen::Vector3d t_imu_to_cam = -Rot_cam_to_imu.transpose() * t_cam_to_imu;
-- Eigen::Matrix3d Rot_imu_to_lidar = Rot_cam_to_lidar * Rot_imu_to_cam;
-- Eigen::Vector3d t_imu_to_lidar = Rot_cam_to_lidar * t_imu_to_cam + t_cam_to_lidar;
-- Eigen::Vector3d eulerAngle=Rot_lidar_to_cam.eulerAngles(2,1,0);
-- double lidar_to_cam_rx = eulerAngle.z();
-- double lidar_to_cam_ry = eulerAngle.y();
-- double lidar_to_cam_rz = eulerAngle.x();
-- You can draw a axis transformation picture to verify it(rotate by z-y-x order, and multiply them by right).
-
----
-
-## Results
-![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-23%2017-25-35.png)
-![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-23%2021-44-15.png)
-![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2015-55-44.png)
+## Results 1.1.0
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2015-59-28.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2016-02-21.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2016-08-34.png)
 ## Results 2.0.0 fix depth association
-![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-52-59.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-53-22.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-53-33.png)
-![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-57-16.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-57-36.png)
 ## Acknowledgement
 
