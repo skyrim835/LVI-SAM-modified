@@ -253,7 +253,6 @@ bool Estimator::initialStructure()
 
         if (lidar_info_available == true)
         {
-            ROS_INFO("run here");
             // Update state
             for (int i = 0; i <= WINDOW_SIZE; i++)
             {

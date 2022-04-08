@@ -346,7 +346,6 @@ void process()
             // Get initialization info from lidar odometry
             vector<float> initialization_info;
             m_odom.lock();
-            //cam的初始位姿
             initialization_info = odomRegister->getOdometry(odomQueue, img_msg->header.stamp.toSec() + estimator.td, lidar_Rot_imu, lidar_Trans_imu);
             m_odom.unlock();
             // 3.3.处理图像数据(初始化, 非线性优化)
