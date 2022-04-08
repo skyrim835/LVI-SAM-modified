@@ -10,7 +10,7 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 - Using [MahonyAHRS](https://github.com/PaulStoffregen/MahonyAHRS) to caculate quaternion.So you don't need to prepare a 9-axis IMU.
 - Add lidar ring calculation method,whether your lidar provides "ring" information or not,it works.
 - Make some changes to the code for sensor alignment.
-- Fix depth association with camera and lidar (Default lidar orientation is x--->front,y--->left,z--->right).
+- Fix depth association with camera and lidar (Default lidar orientation is x--->front,y--->left,z--->up).
 ---
 
 ## Notes
