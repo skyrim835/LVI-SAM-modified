@@ -1,7 +1,6 @@
 # LVI-SAM-MODIFIED
 
 This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan/LVI-SAM).
-
 ---
 
 ## Modification
@@ -27,18 +26,20 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 - You can see the difference between Fix depth association or not in the following pictures.Depth are not easily go through wall, more make sense.
 - Here is the link of our datasets: https://pan.baidu.com/s/1hw_P7DGBDmmdQBnhsHh2zA  Code: vnkh
 - Only tested in slow-moving robot indoor.Outdoor test is coming soon.
-
 ---
 
 ## Results 1.1.0
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2015-59-28.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2016-02-21.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2016-08-34.png)
+---
+
 ## Results 2.0.0 fix depth association
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-53-22.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-53-33.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-57-36.png)
-## Acknowledgement
+---
 
+## Acknowledgement
 - The original version is from [LVI-SAM](https://github.com/TixiaoShan/LVI-SAM).
 - Inspired by this work[LVI_SAM_fixed](https://github.com/epicjung/LVI_SAM_fixed).
