@@ -23,7 +23,7 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 - You need to download and compile [yaml-cpp](https://github.com/jbeder/yaml-cpp).
 - You can use [kalibr](https://github.com/ethz-asl/kalibr) to get cam_to_imu,and [calibration_camera_lidar](https://github.com/XidianLemon/calibration_camera_lidar) to  get cam_to_lidar,lidar_to_imu = cam_to_lidar.transpose * cam_to_imu
 - If you are looking up for Chinese annotation, please click this link [LVI-SAM_detailed_comments](https://github.com/electech6/LVI-SAM_detailed_comments).
-- You can see the difference between Fix depth association or not in the following pictures.Depth are not easily go through wall, more reasonable.
+- You can see the difference between Fix depth association or not in the following pictures.Feature points are not easily go through wall, more reasonable.
 - Only tested in slow-moving robot indoor.Outdoor test is coming soon.
 ---
 
