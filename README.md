@@ -33,10 +33,16 @@ This repository is a modified version of [LVI-SAM](https://github.com/TixiaoShan
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-03-24%2016-08-34.png)
 ---
 
-## Results 2.0.0 fix depth association
+## Results 2.0.0 fix depth association (Indoor)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-53-22.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-53-33.png)
 ![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/Screenshot%20from%202022-04-07%2015-57-36.png)
+---
+
+## Results 2.0.0 fix depth association (Outdoor)
+![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/04.png)
+![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/05.png)
+![image](https://github.com/skyrim835/LVI-SAM-modified/blob/master/images/06.png)
 ---
 
 ## Acknowledgement
